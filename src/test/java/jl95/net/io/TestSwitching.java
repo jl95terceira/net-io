@@ -1,6 +1,7 @@
 package jl95.net.io;
 
 import static jl95.lang.SuperPowers.*;
+import static jl95.net.Util.getSocketByAcceptFuture;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -9,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 import jl95.lang.*;
 import jl95.net.io.managed.SwitchingRetriableClientIos;
 import jl95.net.io.managed.SwitchingRetriableIos;
-import jl95.net.io.util.Util;
 
 public class TestSwitching {
 
@@ -81,9 +81,9 @@ public class TestSwitching {
 
     @org.junit.Test
     public void testRoundRobin() throws Exception {
-        var receiverSocket1Future = Util.getSocketByAcceptFuture(addr1);
-        var receiverSocket2Future = Util.getSocketByAcceptFuture(addr2);
-        var receiverSocket3Future = Util.getSocketByAcceptFuture(addr3);
+        var receiverSocket1Future = getSocketByAcceptFuture(addr1);
+        var receiverSocket2Future = getSocketByAcceptFuture(addr2);
+        var receiverSocket3Future = getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
         switchingIos.setReswitchHandler((addr_prev,addr_new) -> {
             System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
@@ -121,9 +121,9 @@ public class TestSwitching {
     }
     @org.junit.Test
     public void testFailOver() throws Exception {
-        var receiverSocket1Future = Util.getSocketByAcceptFuture(addr1);
-        var receiverSocket2Future = Util.getSocketByAcceptFuture(addr2);
-        var receiverSocket3Future = Util.getSocketByAcceptFuture(addr3);
+        var receiverSocket1Future = getSocketByAcceptFuture(addr1);
+        var receiverSocket2Future = getSocketByAcceptFuture(addr2);
+        var receiverSocket3Future = getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
         switchingIos.setReswitchHandler((addr_prev,addr_new) -> {
             System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
@@ -146,12 +146,12 @@ public class TestSwitching {
         assertReceivesPayloadAndClose(payload3, receiver3);
         // test fail-over to 1st receiver (re-opened)
         var payload4 = new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32};
-        receiver1 = Receiver.of(Util.getSocketByAcceptFuture(addr1).await().getInputStream()); // re-launch 1st receiver
+        receiver1 = Receiver.of(getSocketByAcceptFuture(addr1).await().getInputStream()); // re-launch 1st receiver
         System.out.println("Switch (fail-over) back to receiver 1");
         assertReceivesPayloadAndClose(payload4, receiver1);
         // test fail-over to 3rd receiver (re-opened)
         var payload5 = new byte[]{(byte)255,0,(byte)255,16,64,80,16,112,(byte)255,(byte)255,(byte)32};
-        receiver3 = Receiver.of(Util.getSocketByAcceptFuture(addr3).await().getInputStream()); // re-launch 1st receiver
+        receiver3 = Receiver.of(getSocketByAcceptFuture(addr3).await().getInputStream()); // re-launch 1st receiver
         System.out.println("Switch (fail-over) back to receiver 3");
         assertReceivesPayloadAndClose(payload5, receiver3);
     }

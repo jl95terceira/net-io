@@ -3,7 +3,6 @@ package jl95.net.io;
 import jl95.lang.I;
 import jl95.net.io.managed.RetriableIos;
 import jl95.net.io.managed.SimpleRetriableClientIos;
-import jl95.net.io.util.Util;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;
@@ -11,6 +10,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static jl95.lang.SuperPowers.*;
+import static jl95.net.Util.getSocketByAccept;
+import static jl95.net.Util.getSocketByAcceptFuture;
 
 public class TestRetriable {
 
@@ -64,7 +65,7 @@ public class TestRetriable {
         uncheck(receiver.getInputStream()::close);
         System.out.println("  new");
         new Thread(() -> {
-            receiver = Receiver.of(uncheck(Util.getSocketByAccept(addr)::getInputStream));
+            receiver = Receiver.of(uncheck(getSocketByAccept(addr)::getInputStream));
             System.out.println("Restarted receiver OK");
             expectPayload();
         }).start();
@@ -88,7 +89,7 @@ public class TestRetriable {
 
     @org.junit.Test
     public void test() throws Exception {
-        var receiverSocketFuture = Util.getSocketByAcceptFuture(addr);
+        var receiverSocketFuture = getSocketByAcceptFuture(addr);
         retriableIos = SimpleRetriableClientIos.of(addr);
         sleep(1000);
         sender   = Sender.of(retriableIos);
