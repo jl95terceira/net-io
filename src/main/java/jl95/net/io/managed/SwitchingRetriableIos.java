@@ -31,13 +31,12 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     private       Function0<Integer>           reswitchTimeoutMs = null;
     private       Method2<InetSocketAddress, InetSocketAddress> reswitchHandler   = null;
 
-    private Integer reswitchIo(Integer reswitchesSoFar) {
+    private void reswitchIo(Integer reswitchesSoFar) {
         switchAddress();
         if (!ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
             throw new NoMoreRetriesException();
         }
         sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
-        return reswitchesSoFar + 1;
     }
 
     protected SwitchingRetriableIos(Iterable<InetSocketAddress> peerAddresses) {
@@ -56,23 +55,24 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     }
 
     @Override protected final InetSocketAddress loadAddress    () {
-
         var reswitchesSoFar = 0;
-        while (ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
+        do {
             if (isConnected(peerCurAddress)) {
                 return peerCurAddress;
             } else {
-                reswitchesSoFar = reswitchIo(reswitchesSoFar);
-                continue;
+                reswitchIo(reswitchesSoFar);
+                reswitchesSoFar += 1;
             }
-        }
+        } while (ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar));
         throw new NoMoreReswitchesException();
     }
     @Override protected final void              onIosException (InetSocketAddress addr, Exception ex) {
         reconnect(addr);
         reswitchIo(0);
     }
-    @Override protected final void              retryExecute   (Method0 f) { pool.execute(f::accept); }
+    @Override protected final void              retryExecute   (Method0 f) {
+        pool.execute(f::accept);
+    }
 
     public final void switchAddress       () {
         var peerPreviousAddress = peerCurAddress;
@@ -80,8 +80,15 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
         ifNull(reswitchHandler, (addr_prev,addr_new) -> {}).accept(peerPreviousAddress, peerCurAddress);
     }
     public final void setReswitchPredicate(Function1<Boolean, Integer> f) {
-        reswitchPredicate = f;}
-    public final void setReswitchLimit    (Integer max) {setReswitchPredicate(i -> i <= max);}
-    public final void setReswitchTimeoutMs(Function0<Integer>          f) {reswitchTimeoutMs = f;}
-    public final void setReswitchHandler  (Method2<InetSocketAddress, InetSocketAddress> f) {reswitchHandler = f;}
+        reswitchPredicate = f;
+    }
+    public final void setReswitchLimit    (Integer max) {
+        setReswitchPredicate(i -> i < max);
+    }
+    public final void setReswitchTimeoutMs(Function0<Integer>          f) {
+        reswitchTimeoutMs = f;
+    }
+    public final void setReswitchHandler  (Method2<InetSocketAddress, InetSocketAddress> f) {
+        reswitchHandler = f;
+    }
 }
