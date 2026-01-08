@@ -40,7 +40,7 @@ public class TestSwitching {
         System.out.println("Payload to test: "+repr(payload));
         var payloadBackPromise = new CompletableFuture<byte[]>();
         receiver.ensureStopped();
-        receiver.recv(payloadBackPromise::complete).await();
+        receiver.recv(payloadBackPromise::complete).get();
         System.out.println("Sending");
         sender.send(payload);
         System.out.println("Waiting for payload back");
@@ -92,11 +92,11 @@ public class TestSwitching {
         System.out.println("Sender create");
         sender = Sender.of(switchingIos);
         System.out.println("Receiver 1 create");
-        receiver1 = Receiver.of(receiverSocket1Future.await().getInputStream());
+        receiver1 = Receiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Receiver 2 create");
-        receiver2 = Receiver.of(receiverSocket2Future.await().getInputStream()); // start 2nd receiver - sender with switching IO expected to fail-over
+        receiver2 = Receiver.of(receiverSocket2Future.get().getInputStream()); // start 2nd receiver - sender with switching IO expected to fail-over
         System.out.println("Receiver 3 create");
-        receiver3 = Receiver.of(receiverSocket3Future.await().getInputStream()); // start 3rd receiver - sender with switching IO expected to fail-over
+        receiver3 = Receiver.of(receiverSocket3Future.get().getInputStream()); // start 3rd receiver - sender with switching IO expected to fail-over
         System.out.println("All receivers created");
         // test 1st receiver
         assertReceivesPayload(new byte[]{0,16,0,48,0,80,0,112,0,(byte)144,0},
@@ -131,27 +131,27 @@ public class TestSwitching {
         sleep(1000);
         sender = Sender.of(switchingIos);
         var payload1 = new byte[1000];
-        receiver1 = Receiver.of(receiverSocket1Future.await().getInputStream());
+        receiver1 = Receiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Connected to receiver 1");
         assertReceivesPayloadAndClose(payload1, receiver1);
         // test fail-over to 2nd receiver
         var payload2 = new byte[]{0,16,32,48,64,80,96,112,(byte)128,(byte)144,(byte)160};
-        receiver2 = Receiver.of(receiverSocket2Future.await().getInputStream()); // start 2nd receiver - sender with switching IO expected to fail-over
+        receiver2 = Receiver.of(receiverSocket2Future.get().getInputStream()); // start 2nd receiver - sender with switching IO expected to fail-over
         System.out.println("Switch (fail-over) to receiver 2");
         assertReceivesPayloadAndClose(payload2, receiver2);
         // test fail-over to 3rd receiver
         var payload3 = new byte[]{(byte)255,16,112,96,64,80,96,112,(byte)128,(byte)144,(byte)160};
-        receiver3 = Receiver.of(receiverSocket3Future.await().getInputStream()); // start 3rd receiver - sender with switching IO expected to fail-over
+        receiver3 = Receiver.of(receiverSocket3Future.get().getInputStream()); // start 3rd receiver - sender with switching IO expected to fail-over
         System.out.println("Switch (fail-over) to receiver 3");
         assertReceivesPayloadAndClose(payload3, receiver3);
         // test fail-over to 1st receiver (re-opened)
         var payload4 = new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32};
-        receiver1 = Receiver.of(getSocketByAcceptFuture(addr1).await().getInputStream()); // re-launch 1st receiver
+        receiver1 = Receiver.of(getSocketByAcceptFuture(addr1).get().getInputStream()); // re-launch 1st receiver
         System.out.println("Switch (fail-over) back to receiver 1");
         assertReceivesPayloadAndClose(payload4, receiver1);
         // test fail-over to 3rd receiver (re-opened)
         var payload5 = new byte[]{(byte)255,0,(byte)255,16,64,80,16,112,(byte)255,(byte)255,(byte)32};
-        receiver3 = Receiver.of(getSocketByAcceptFuture(addr3).await().getInputStream()); // re-launch 1st receiver
+        receiver3 = Receiver.of(getSocketByAcceptFuture(addr3).get().getInputStream()); // re-launch 1st receiver
         System.out.println("Switch (fail-over) back to receiver 3");
         assertReceivesPayloadAndClose(payload5, receiver3);
     }

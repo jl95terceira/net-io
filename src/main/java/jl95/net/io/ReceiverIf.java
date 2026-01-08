@@ -40,41 +40,41 @@ public interface ReceiverIf<T> {
         }
     }
 
-    VoidAwaitable   recvWhile     (Function1<Boolean, T> incomingCbToContinue,
+    UVoidFuture   recvWhile     (Function1<Boolean, T> incomingCbToContinue,
                                    RecvOptions           options);
-    VoidAwaitable   recvStop      ();
+    UVoidFuture   recvStop      ();
     Boolean         isReceiving   ();
     InputStream     getInputStream();
 
-    default VoidAwaitable recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
+    default UVoidFuture recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
 
         return recvWhile(incomingCbToContinue, RecvOptions.defaults());
     }
-    default VoidAwaitable recv         (Method1<T>            incomingCb,
+    default UVoidFuture recv         (Method1<T>            incomingCb,
                                         RecvOptions           options) {
         return recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return true;
         }, options);
     }
-    default VoidAwaitable recv         (Method1<T>            incomingCb) {
+    default UVoidFuture recv         (Method1<T>            incomingCb) {
 
         return recv(incomingCb, RecvOptions.defaults());
     }
-    default VoidAwaitable recvOnce     (Method1<T>            incomingCb,
+    default UVoidFuture recvOnce     (Method1<T>            incomingCb,
                                         RecvOptions           options) {
         return recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return false;
         }, options);
     }
-    default VoidAwaitable recvOnce     (Method1<T>            incomingCb) {
+    default UVoidFuture recvOnce     (Method1<T>            incomingCb) {
         return recvOnce(incomingCb, RecvOptions.defaults());
     }
     default void          ensureStopped() {
         try {
             if (!isReceiving()) return;
-            recvStop().await();
+            recvStop().get();
         }
         catch (Receiver.NotReceivingException ex) {
             return;
@@ -83,13 +83,13 @@ public interface ReceiverIf<T> {
     default <T2> ReceiverIf<T2> adaptedReceiver(Function1<T2, T> adapterFunction) {
         return new ReceiverIf<>() {
 
-            @Override public VoidAwaitable  recvWhile     (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
+            @Override public UVoidFuture  recvWhile     (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
                 return ReceiverIf.this.recvWhile(incoming -> {
                     var adaptedIncoming = adapterFunction.apply(incoming);
                     return incomingCbToContinue.apply(adaptedIncoming);
                 }, options);
             }
-            @Override public VoidAwaitable  recvStop      () {
+            @Override public UVoidFuture  recvStop      () {
                 return ReceiverIf.this.recvStop();
             }
             @Override public Boolean          isReceiving   () {

@@ -57,9 +57,9 @@ public class Test {
     @org.junit.Test public void testStartStop() {
 
         org.junit.Assert.assertFalse(receiver.isReceiving());
-        receiver.recv(x -> {}).await();
+        receiver.recv(x -> {}).get();
         org.junit.Assert.assertTrue(receiver.isReceiving());
-        receiver.recvStop().await();
+        receiver.recvStop().get();
         org.junit.Assert.assertFalse(receiver.isReceiving());
     }
     @org.junit.Test public void test() {
@@ -77,16 +77,16 @@ public class Test {
             charsReceivedNr[0] += message.length();
             org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
             org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
-        }).await();
+        }).get();
         for (var message: messagesSend) {
              sender.send(message);
         }
         System.out.println("Exchanged a total of "+charsReceivedNr[0]+" characters");
-        receiver.recvStop().await();
+        receiver.recvStop().get();
     }
     @org.junit.Test public void testException() {
-        receiver.recv(x -> { throw new RuntimeException(); }).await();
+        receiver.recv(x -> { throw new RuntimeException(); }).get();
         sender.send("abc");
-        receiver.recvStop().await();
+        receiver.recvStop().get();
     }
 }

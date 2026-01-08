@@ -45,7 +45,7 @@ public class Util {
             var clientSocket = uncheck(() -> clientConnectionTimeoutMs != null
                                            ? clientSocketFuture.get(clientConnectionTimeoutMs, TimeUnit.MILLISECONDS)
                                            : clientSocketFuture.get());
-            server.stop().await(); // stop server right away - no need to accept more connections
+            server.stop().get(); // stop server right away - no need to accept more connections
             uncheck(server.getSocket()::close); // release bind address
             return getIoFromSocket(clientSocket);
         }

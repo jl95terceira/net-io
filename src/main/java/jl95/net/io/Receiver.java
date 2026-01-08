@@ -42,9 +42,9 @@ public class Receiver implements ReceiverIf<byte[]> {
         flushInputStream();
     }
 
-    private VoidAwaitable recvStopUnchecked() {
+    private UVoidFuture recvStopUnchecked() {
         toStop = true; // to be checked in loop, after which the future above will be completed
-        return VoidAwaitable.of(stopFuture);
+        return UVoidFuture.of(stopFuture);
     }
 
     public final void flushInputStream() {
@@ -52,7 +52,7 @@ public class Receiver implements ReceiverIf<byte[]> {
     }
 
     @Override
-    synchronized public final VoidAwaitable recvWhile    (Function1<Boolean, byte[]> incomingCbToContinue,
+    synchronized public final UVoidFuture recvWhile    (Function1<Boolean, byte[]> incomingCbToContinue,
                                                             RecvOptions options) {
         if (isReceiving) {
             throw new AlreadyReceivingException();
@@ -122,17 +122,16 @@ public class Receiver implements ReceiverIf<byte[]> {
             stopFuture.complete(null);
             options.afterStop();
         });
-        return VoidAwaitable.of(startFuture);
+        return UVoidFuture.of(startFuture);
     }
     @Override
-    synchronized public final VoidAwaitable recvStop     () {
+    synchronized public final UVoidFuture recvStop     () {
 
         if (!isReceiving) {
             throw new NotReceivingException();
         }
         return recvStopUnchecked();
     }
-
     @Override
     public final Boolean           isReceiving   () {
         return isReceiving;

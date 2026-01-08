@@ -93,7 +93,7 @@ public class TestRetriable {
         retriableIos = SimpleRetriableClientIos.of(addr);
         sleep(1000);
         sender   = Sender.of(retriableIos);
-        receiver = Receiver.of(receiverSocketFuture.await().getInputStream());
+        receiver = Receiver.of(receiverSocketFuture.get().getInputStream());
         System.out.println("Connected to receiver");
         expectPayload();
         var payloadMaker = function(() -> String.join("", I.range(10).map(i -> UUID.randomUUID().toString())).getBytes());
