@@ -79,11 +79,18 @@ public class Receiver implements ReceiverIf<byte[]> {
                             timeouts .set(0);
                             timeoutT0.set(Instant.now());
                             var sizeSize = is.read();
-                            var sizeAsBytes = new byte[sizeSize];
-                            is.read(sizeAsBytes, 0, sizeSize);
-                            var size       = new java.math.BigInteger(sizeAsBytes).intValue();
-                            incoming.set(new byte[size]);
-                            is.read(incoming.get(), 0, size);
+                            if (sizeSize > 0) {
+                                var sizeAsBytes = new byte[sizeSize];
+                                is.read(sizeAsBytes, 0, sizeSize);
+                                var size = new java.math.BigInteger(sizeAsBytes).intValue();
+                                incoming.set(new byte[size]);
+                                if (size > 0) {
+                                    is.read(incoming.get(), 0, size);
+                                }
+                            }
+                            else {
+                                incoming.set(new byte[0]);
+                            }
                             return false;
                         }); });
                         if (continueLoop) {
