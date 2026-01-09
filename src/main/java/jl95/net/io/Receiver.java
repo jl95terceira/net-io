@@ -1,8 +1,10 @@
 package jl95.net.io;
 
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -10,7 +12,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import static jl95.lang.SuperPowers.function;
 import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.sleep;
+import static jl95.lang.SuperPowers.strict;
 import static jl95.lang.SuperPowers.uncheck;
+import static jl95.net.io.Util.CONTENT_AHEAD_SIGNAL;
+import static jl95.net.io.Util.CONTENT_FRAME_SIZE;
+import static jl95.net.io.Util.SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
+import static jl95.net.io.Util.SIZE_FRAME_SIZE;
 
 import jl95.lang.*;
 import jl95.lang.variadic.*;
@@ -78,18 +85,30 @@ public class Receiver implements ReceiverIf<byte[]> {
                             }
                             timeouts .set(0);
                             timeoutT0.set(Instant.now());
-                            var sizeSize = is.read();
-                            if (sizeSize > 0) {
-                                var sizeAsBytes = new byte[sizeSize];
-                                is.read(sizeAsBytes, 0, sizeSize);
-                                var size = new java.math.BigInteger(sizeAsBytes).intValue();
-                                incoming.set(new byte[size]);
-                                if (size > 0) {
-                                    is.read(incoming.get(), 0, size);
+                            incoming.set(old -> null);
+                            var contentPartsList = strict(new LinkedList<byte[]>());
+                            while (!toStop) {
+                                var signal = is.read();
+                                if (signal != CONTENT_AHEAD_SIGNAL) {
+                                    if (!contentPartsList.isEmpty()) {
+                                        var N = I.of(contentPartsList).reduce(0, (sum,array) -> sum + array.length);
+                                        incoming.set(new byte[N]);
+                                        var i = 0;
+                                        for (var p: contentPartsList) {
+                                            System.arraycopy(p, i, incoming.get(), 0, p.length);
+                                            i += p.length;
+                                        }
+                                    }
+                                    break;
                                 }
-                            }
-                            else {
-                                incoming.set(new byte[0]);
+                                var sizeFrame = is.readNBytes(SIZE_FRAME_SIZE);
+                                var contentSize = new BigInteger(sizeFrame).intValue();
+                                var contentFrame = is.readNBytes(CONTENT_FRAME_SIZE);
+                                var contentPart = new byte[contentSize];
+                                if (contentSize > 0) {
+                                    System.arraycopy(contentFrame, 0, contentPart, 0, contentSize);
+                                    contentPartsList.add(contentPart);
+                                }
                             }
                             return false;
                         }); });
@@ -102,14 +121,15 @@ public class Receiver implements ReceiverIf<byte[]> {
                         break;
                     }
                     try {
-                        var toContinue = incomingCbToContinue.apply(incoming.get());
-                        if (!toContinue) {
-                            toStop = true;
+                        if (incoming.get() != null) {
+                            var toContinue = incomingCbToContinue.apply(incoming.get());
+                            if (!toContinue) {
+                                toStop = true;
+                            }
                         }
                     }
                     catch (Exception ex) {
                         options.onHandlingException(ex);
-                        continue;
                     }
                 }
                 catch (Exception ex) {

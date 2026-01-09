@@ -62,27 +62,31 @@ public class Test {
         receiver.recvStop().get();
         org.junit.Assert.assertFalse(receiver.isReceiving());
     }
-    @org.junit.Test public void test() {
+    private void testSendMessages(List<String> messages) {
 
-        var N = 1000; // nr of messages
-        var R = 10;  // size of each message = R * size of a UUID
-        List<String> messagesSend = new ArrayList<>(N);
-        for (int i = 0; i < N; i++) {
-            messagesSend.add(UUID.randomUUID().toString().repeat(R));
-        }
-        System.out.printf("Testing send-receive (through localhost) for %s messages\n", messagesSend.size());
+        System.out.printf("Testing send-receive (through localhost) for %s messages\n", messages.size());
         int[] charsReceivedNr = { 0 };
-        var messagesSendIterator = messagesSend.iterator();
+        var messagesSendIterator = messages.iterator();
         receiver.recv(message -> {
             charsReceivedNr[0] += message.length();
             org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
             org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
         }).get();
-        for (var message: messagesSend) {
+        for (var message: messages) {
              sender.send(message);
         }
         System.out.println("Exchanged a total of "+charsReceivedNr[0]+" characters");
         receiver.recvStop().get();
+    }
+    @org.junit.Test public void test() {
+
+        var N = 1000; // nr of messages
+        var R = 10;  // size of each message = R * size of a UUID
+        List<String> messages = new ArrayList<>(N);
+        for (int i = 0; i < N; i++) {
+            messages.add(UUID.randomUUID().toString().repeat(R));
+        }
+        testSendMessages(messages);
     }
     @org.junit.Test public void testException() {
         receiver.recv(x -> { throw new RuntimeException(); }).get();

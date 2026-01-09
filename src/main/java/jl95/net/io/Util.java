@@ -5,19 +5,21 @@ import jl95.net.io.util.Defaults;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import jl95.util.*;
 
 import static jl95.lang.SuperPowers.*;
 
 public class Util {
+
+        public static final int    CONTENT_AHEAD_SIGNAL = 255;
+        public static final int    NO_CONTENT_SIGNAL = 0;
+        public static final int    CONTENT_FRAME_SIZE = 4*1024;
+        public static final byte[] SIZE_FRAME_FOR_FULL_CONTENT_FRAME = BigInteger.valueOf(CONTENT_FRAME_SIZE).toByteArray();
+        public static final int    SIZE_FRAME_SIZE = SIZE_FRAME_FOR_FULL_CONTENT_FRAME.length;
 
         public static CloseableIos getIoFromSocket(Socket            socket) {
             return new CloseableIos() {

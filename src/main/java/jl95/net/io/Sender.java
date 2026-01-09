@@ -1,9 +1,16 @@
 package jl95.net.io;
 
 import static jl95.lang.SuperPowers.*;
+import static jl95.net.io.Util.CONTENT_FRAME_SIZE;
+import static jl95.net.io.Util.CONTENT_AHEAD_SIGNAL;
+import static jl95.net.io.Util.NO_CONTENT_SIGNAL;
+import static jl95.net.io.Util.SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
+import static jl95.net.io.Util.SIZE_FRAME_SIZE;
 
 import java.io.OutputStream;
+import java.math.BigInteger;
 
+import jl95.lang.I;
 import jl95.net.io.managed.ManagedOs;
 
 public class Sender implements SenderIf<byte[]> {
@@ -33,9 +40,40 @@ public class Sender implements SenderIf<byte[]> {
         var sizeAsBytes     = java.math.BigInteger.valueOf(size).toByteArray();
         mos.withOutput(os -> { uncheck(() -> {
             try {
-                os.write(sizeAsBytes.length);
-                os.write(sizeAsBytes);
-                os.write(outgoing);
+                if (outgoing.length > 0) {
+                    byte[] sizeFrame;
+                    byte[] contentFrame;
+                    var N = (outgoing.length - 1) / CONTENT_FRAME_SIZE + 1;
+                    for (var i: I.range(N-1)) {
+                        sizeFrame    = SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
+                        contentFrame = new byte[CONTENT_FRAME_SIZE];
+                        System.arraycopy(outgoing, i* CONTENT_FRAME_SIZE, contentFrame, 0, CONTENT_FRAME_SIZE);
+                        os.write(CONTENT_AHEAD_SIGNAL);
+                        os.write(sizeFrame);
+                        os.write(contentFrame);
+                    }
+                    sizeFrame    = new byte[SIZE_FRAME_SIZE];
+                    contentFrame = new byte[CONTENT_FRAME_SIZE];
+                    var lastFrameContentSize = outgoing.length - (N-1)* CONTENT_FRAME_SIZE;
+                    var lastFrameContentSizeAsBytes = BigInteger.valueOf(lastFrameContentSize).toByteArray();
+                    System.arraycopy(lastFrameContentSizeAsBytes,
+                                     0,
+                                     sizeFrame,
+                                     SIZE_FRAME_SIZE - lastFrameContentSizeAsBytes.length,
+                                     lastFrameContentSizeAsBytes.length);
+                    System.arraycopy(outgoing,
+                                     (N-1)*CONTENT_FRAME_SIZE,
+                                     contentFrame,
+                                     0,
+                                     lastFrameContentSize);
+                    os.write(CONTENT_AHEAD_SIGNAL);
+                    os.write(sizeFrame);
+                    os.write(contentFrame);
+                    os.write(NO_CONTENT_SIGNAL);
+                }
+                else {
+                    os.write(NO_CONTENT_SIGNAL);
+                }
             }
             catch (Exception ex) {
                 throw new SendException(ex);
