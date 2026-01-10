@@ -36,8 +36,6 @@ public class Sender implements SenderIf<byte[]> {
 
     @Override
     synchronized public final void send(byte[] outgoing) {
-        var size            = outgoing.length;
-        var sizeAsBytes     = java.math.BigInteger.valueOf(size).toByteArray();
         mos.withOutput(os -> { uncheck(() -> {
             try {
                 if (outgoing.length > 0) {
