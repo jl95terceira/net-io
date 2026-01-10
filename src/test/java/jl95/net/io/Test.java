@@ -5,6 +5,7 @@ import static jl95.lang.SuperPowers.uncheck;
 import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import jl95.net.io.collections.ReceiverAdaptersCollection;
 import jl95.net.io.collections.SenderAdaptersCollections;
@@ -47,17 +48,22 @@ public class Test {
     }
     @org.junit.After
     public void tearDown() throws Exception {
-        sender  .getOutputStream().close();
+        sender.getOutputStream().close();
         if (receiver.isReceiving()) {
-            receiver.recvStop();
+            receiver.recvStop().get();
         }
-        receiver.getInputStream ().close();
+        receiver.getInputStream().close();
+    }
+
+    public static void threaded(Runnable runnable) {
+        new Thread(runnable).start();
     }
 
     @org.junit.Test public void testStartStop() {
 
         org.junit.Assert.assertFalse(receiver.isReceiving());
-        receiver.recv(x -> {}).get();
+        threaded(() -> receiver.recv(x -> {}));
+        receiver.recvWaitStarted().get();
         org.junit.Assert.assertTrue(receiver.isReceiving());
         receiver.recvStop().get();
         org.junit.Assert.assertFalse(receiver.isReceiving());
@@ -67,11 +73,12 @@ public class Test {
         System.out.printf("Testing send-receive (through localhost) for %s messages\n", messages.size());
         int[] charsReceivedNr = { 0 };
         var messagesSendIterator = messages.iterator();
-        receiver.recv(message -> {
+        threaded(() -> receiver.recv(message -> {
             charsReceivedNr[0] += message.length();
             org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
             org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
-        }).get();
+        }));
+        receiver.recvWaitStarted().get();
         for (var message: messages) {
              sender.send(message);
         }
@@ -89,7 +96,8 @@ public class Test {
         testSendMessages(messages);
     }
     @org.junit.Test public void testException() {
-        receiver.recv(x -> { throw new RuntimeException(); }).get();
+        threaded(() -> receiver.recv(x -> { throw new RuntimeException(); }));
+        receiver.recvWaitStarted().get();
         sender.send("abc");
         receiver.recvStop().get();
     }

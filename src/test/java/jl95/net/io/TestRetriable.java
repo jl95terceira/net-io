@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import static jl95.lang.SuperPowers.*;
 import static jl95.net.Util.getSocketByAccept;
 import static jl95.net.Util.getSocketByAcceptFuture;
+import static jl95.net.io.Test.threaded;
 
 public class TestRetriable {
 
@@ -54,7 +55,8 @@ public class TestRetriable {
     }
     private void expectPayload() {
         payloadBackPromise = new CompletableFuture<>();
-        receiver.recv(payloadBackPromise::complete);
+        threaded(() -> receiver.recv(payloadBackPromise::complete));
+        receiver.recvWaitStarted().get();
     }
     private void restartReceiver() {
         restartsNr += 1;

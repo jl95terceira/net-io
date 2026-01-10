@@ -15,7 +15,6 @@ public interface ReceiverIf<T> {
                        Duration timeoutAccum) {}
     interface RecvOptions {
 
-        void    afterStop          ();
         void    onInputException   (Exception ex);
         void    onHandlingException(Exception ex);
         void    onInputTimeout     (TimeoutInfo timeoutInfo);
@@ -23,13 +22,11 @@ public interface ReceiverIf<T> {
         
         class Editable implements RecvOptions {
 
-            public Method0              afterStop           = ()   -> {};
             public Method1<Exception>   inputExcHandler     = (ex) -> System.out.printf("Exception on reading input: %s%n", ex);
             public Method1<Exception>   handlingExcHandler  = (ex) -> System.out.printf("Exception on handling input: %s%n", ex);
             public Method1<TimeoutInfo> inputTimeoutHandler = (info) ->  {};
             public Function0<Integer>   inputRetryTimeoutMs = constant(100);
 
-            @Override public void    afterStop          ()             { afterStop          .accept(); }
             @Override public void    onHandlingException(Exception ex) { handlingExcHandler .accept(ex); }
             @Override public void    onInputException   (Exception ex) { inputExcHandler    .accept(ex); }
             @Override public void    onInputTimeout     (TimeoutInfo info) { inputTimeoutHandler.accept(info); }
@@ -40,38 +37,39 @@ public interface ReceiverIf<T> {
         }
     }
 
-    UVoidFuture   recvWhile     (Function1<Boolean, T> incomingCbToContinue,
-                                   RecvOptions           options);
-    UVoidFuture   recvStop      ();
-    Boolean         isReceiving   ();
-    InputStream     getInputStream();
+    void          recvWhile      (Function1<Boolean, T> incomingCbToContinue,
+                                  RecvOptions           options);
+    UVoidFuture   recvWaitStarted();
+    UVoidFuture   recvStop       ();
+    Boolean       isReceiving    ();
+    InputStream   getInputStream ();
 
-    default UVoidFuture recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
+    default void recvWhile(Function1<Boolean, T> incomingCbToContinue) {
 
-        return recvWhile(incomingCbToContinue, RecvOptions.defaults());
+        recvWhile(incomingCbToContinue, RecvOptions.defaults());
     }
-    default UVoidFuture recv         (Method1<T>            incomingCb,
-                                        RecvOptions           options) {
-        return recvWhile(incoming -> {
+    default void recv     (Method1<T>            incomingCb,
+                           RecvOptions           options) {
+        recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return true;
         }, options);
     }
-    default UVoidFuture recv         (Method1<T>            incomingCb) {
+    default void recv     (Method1<T>            incomingCb) {
 
-        return recv(incomingCb, RecvOptions.defaults());
+        recv(incomingCb, RecvOptions.defaults());
     }
-    default UVoidFuture recvOnce     (Method1<T>            incomingCb,
-                                        RecvOptions           options) {
-        return recvWhile(incoming -> {
+    default void recvOnce (Method1<T>            incomingCb,
+                           RecvOptions           options) {
+        recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return false;
         }, options);
     }
-    default UVoidFuture recvOnce     (Method1<T>            incomingCb) {
-        return recvOnce(incomingCb, RecvOptions.defaults());
+    default void recvOnce (Method1<T>            incomingCb) {
+        recvOnce(incomingCb, RecvOptions.defaults());
     }
-    default void          ensureStopped() {
+    default void ensureStopped() {
         try {
             if (!isReceiving()) return;
             recvStop().get();
@@ -83,19 +81,22 @@ public interface ReceiverIf<T> {
     default <T2> ReceiverIf<T2> adaptedReceiver(Function1<T2, T> adapterFunction) {
         return new ReceiverIf<>() {
 
-            @Override public UVoidFuture  recvWhile     (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
-                return ReceiverIf.this.recvWhile(incoming -> {
+            @Override public void         recvWhile      (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
+                ReceiverIf.this.recvWhile(incoming -> {
                     var adaptedIncoming = adapterFunction.apply(incoming);
                     return incomingCbToContinue.apply(adaptedIncoming);
                 }, options);
             }
-            @Override public UVoidFuture  recvStop      () {
+            @Override public UVoidFuture  recvWaitStarted() {
+                return ReceiverIf.this.recvWaitStarted();
+            }
+            @Override public UVoidFuture  recvStop       () {
                 return ReceiverIf.this.recvStop();
             }
-            @Override public Boolean          isReceiving   () {
+            @Override public Boolean      isReceiving    () {
                 return ReceiverIf.this.isReceiving();
             }
-            @Override public InputStream      getInputStream() {
+            @Override public InputStream  getInputStream () {
                 return ReceiverIf.this.getInputStream();
             }
         };

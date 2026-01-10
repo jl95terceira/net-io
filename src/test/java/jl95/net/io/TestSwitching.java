@@ -2,6 +2,7 @@ package jl95.net.io;
 
 import static jl95.lang.SuperPowers.*;
 import static jl95.net.Util.getSocketByAcceptFuture;
+import static jl95.net.io.Test.threaded;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +41,8 @@ public class TestSwitching {
         System.out.println("Payload to test: "+repr(payload));
         var payloadBackPromise = new CompletableFuture<byte[]>();
         receiver.ensureStopped();
-        receiver.recv(payloadBackPromise::complete).get();
+        threaded(() -> receiver.recv(payloadBackPromise::complete));
+        receiver.recvWaitStarted().get();
         System.out.println("Sending");
         sender.send(payload);
         System.out.println("Waiting for payload back");

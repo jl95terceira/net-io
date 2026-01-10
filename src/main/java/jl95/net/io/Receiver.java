@@ -37,11 +37,10 @@ public class Receiver implements ReceiverIf<byte[]> {
     }
 
     private final    ManagedIs               mis;
-    private final    ThreadPoolExecutor      pool = new ScheduledThreadPoolExecutor(1);
     private volatile Boolean                 isReceiving = false;
     private volatile Boolean                 toStop      = false;
-    private          CompletableFuture<Void> startFuture;
-    private          CompletableFuture<Void> stopFuture;
+    private          CompletableFuture<Void> startFuture = new CompletableFuture<>();
+    private          CompletableFuture<Void> stopFuture  = new CompletableFuture<>();
 
     private Receiver(ManagedIs mis) {
 
@@ -59,93 +58,94 @@ public class Receiver implements ReceiverIf<byte[]> {
     }
 
     @Override
-    synchronized public final UVoidFuture recvWhile    (Function1<Boolean, byte[]> incomingCbToContinue,
-                                                            RecvOptions options) {
+    synchronized
+    public final void recvWhile(Function1<Boolean, byte[]> incomingCbToContinue,
+                                RecvOptions options) {
         if (isReceiving) {
             throw new AlreadyReceivingException();
         }
         toStop      = false;
-        startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
         isReceiving = true;
-        pool.execute(() -> {
-            startFuture.complete(null);
-            var timeouts     = new Ref<>(0);
-            var timeoutT0    = new Ref<>(Instant.now());
-            while (!toStop) {
-                var incoming = new Ref<byte[]>();
+        startFuture.complete(null);
+        var timeouts     = new P<>(0);
+        var timeoutT0    = new P<>(Instant.now());
+        while (!toStop) {
+            var incoming = new P<byte[]>(null);
+            try {
                 try {
-                    try {
-                        var continueLoop = mis.withInput(is -> { return uncheck(() -> {
-                            if (is.available() == 0) {
-                                timeouts.set(v -> v + 1);
-                                options.onInputTimeout(new TimeoutInfo(timeouts.get(), Duration.between(timeoutT0.get(), Instant.now())));
-                                sleep(options.inputRetryTimeoutMs());
-                                return true;
-                            }
-                            timeouts .set(0);
-                            timeoutT0.set(Instant.now());
-                            incoming.set(old -> null);
-                            var contentPartsList = strict(new LinkedList<byte[]>());
-                            while (!toStop) {
-                                var signal = is.read();
-                                if (signal != CONTENT_AHEAD_SIGNAL) {
-                                    if (!contentPartsList.isEmpty()) {
-                                        var N = I.of(contentPartsList).reduce(0, (sum,array) -> sum + array.length);
-                                        incoming.set(new byte[N]);
-                                        var i = 0;
-                                        for (var p: contentPartsList) {
-                                            System.arraycopy(p, i, incoming.get(), 0, p.length);
-                                            i += p.length;
-                                        }
+                    var continueLoop = mis.withInput(is -> { return uncheck(() -> {
+                        if (is.available() == 0) {
+                            timeouts.set(v -> v + 1);
+                            options.onInputTimeout(new TimeoutInfo(timeouts.get(), Duration.between(timeoutT0.get(), Instant.now())));
+                            sleep(options.inputRetryTimeoutMs());
+                            return true;
+                        }
+                        timeouts .set(0);
+                        timeoutT0.set(Instant.now());
+                        incoming.set(old -> null);
+                        var contentPartsList = strict(new LinkedList<byte[]>());
+                        while (!toStop) {
+                            var signal = is.read();
+                            if (signal != CONTENT_AHEAD_SIGNAL) {
+                                if (!contentPartsList.isEmpty()) {
+                                    var N = I.of(contentPartsList).reduce(0, (sum,array) -> sum + array.length);
+                                    incoming.set(new byte[N]);
+                                    var i = 0;
+                                    for (var p: contentPartsList) {
+                                        System.arraycopy(p, i, incoming.get(), 0, p.length);
+                                        i += p.length;
                                     }
-                                    break;
                                 }
-                                var sizeFrame = is.readNBytes(SIZE_FRAME_SIZE);
-                                var contentSize = new BigInteger(sizeFrame).intValue();
-                                var contentFrame = is.readNBytes(CONTENT_FRAME_SIZE);
-                                var contentPart = new byte[contentSize];
-                                if (contentSize > 0) {
-                                    System.arraycopy(contentFrame, 0, contentPart, 0, contentSize);
-                                    contentPartsList.add(contentPart);
-                                }
+                                break;
                             }
-                            return false;
-                        }); });
-                        if (continueLoop) {
-                            continue;
-                        }
-                    }
-                    catch (Exception   ex) {
-                        options.onInputException(ex);
-                        break;
-                    }
-                    try {
-                        if (incoming.get() != null) {
-                            var toContinue = incomingCbToContinue.apply(incoming.get());
-                            if (!toContinue) {
-                                toStop = true;
+                            var sizeFrame = is.readNBytes(SIZE_FRAME_SIZE);
+                            var contentSize = new BigInteger(sizeFrame).intValue();
+                            var contentFrame = is.readNBytes(CONTENT_FRAME_SIZE);
+                            var contentPart = new byte[contentSize];
+                            if (contentSize > 0) {
+                                System.arraycopy(contentFrame, 0, contentPart, 0, contentSize);
+                                contentPartsList.add(contentPart);
                             }
                         }
+                        return false;
+                    }); });
+                    if (continueLoop) {
+                        continue;
                     }
-                    catch (Exception ex) {
-                        options.onHandlingException(ex);
+                }
+                catch (Exception   ex) {
+                    options.onInputException(ex);
+                    break;
+                }
+                try {
+                    if (incoming.get() != null) {
+                        var toContinue = incomingCbToContinue.apply(incoming.get());
+                        if (!toContinue) {
+                            toStop = true;
+                        }
                     }
                 }
                 catch (Exception ex) {
-                    System.out.println("Receiver: UNHANDLED FOLLOW-UP EXCEPTION - stop recv");
-                    ex.printStackTrace();
-                    break;
+                    options.onHandlingException(ex);
                 }
             }
-            isReceiving = false;
-            stopFuture.complete(null);
-            options.afterStop();
-        });
+            catch (Exception ex) {
+                System.out.println("Receiver: UNHANDLED FOLLOW-UP EXCEPTION - stop recv");
+                ex.printStackTrace();
+                break;
+            }
+        }
+        isReceiving = false;
+        startFuture = new CompletableFuture<>();
+        stopFuture.complete(null);
+    }
+    @Override
+    public final UVoidFuture recvWaitStarted() {
         return UVoidFuture.of(startFuture);
     }
     @Override
-    synchronized public final UVoidFuture recvStop     () {
+    public final UVoidFuture recvStop() {
 
         if (!isReceiving) {
             throw new NotReceivingException();
@@ -153,9 +153,9 @@ public class Receiver implements ReceiverIf<byte[]> {
         return recvStopUnchecked();
     }
     @Override
-    public final Boolean           isReceiving   () {
+    public final Boolean isReceiving() {
         return isReceiving;
     }
     @Override
-    public final InputStream       getInputStream() { return mis.getInputStream(); }
+    public final InputStream getInputStream() { return mis.getInputStream(); }
   }
