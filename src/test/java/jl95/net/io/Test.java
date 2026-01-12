@@ -2,12 +2,14 @@ package jl95.net.io;
 
 import static jl95.lang.SuperPowers.I;
 import static jl95.lang.SuperPowers.uncheck;
+import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
 
 import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import jl95.lang.P;
 import jl95.net.io.collections.ReceiverAdaptersCollection;
 import jl95.net.io.collections.SenderAdaptersCollections;
 
@@ -74,17 +76,18 @@ public class Test {
         System.out.printf("Testing send-receive (through localhost) for %s messages\n", messages.size());
         int[] charsReceivedNr = { 0 };
         var messagesSendIterator = messages.iterator();
-        threaded(() -> receiver.recv(message -> {
+        threaded(() -> receiver.recvWhile(message -> {
             charsReceivedNr[0] += message.length();
             org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
             org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
+            return messagesSendIterator.hasNext();
         }));
         receiver.recvWaitStarted().get();
         for (var message: messages) {
              sender.send(message);
         }
+        receiver.recvWaitStopped().get();
         System.out.println("Exchanged a total of "+charsReceivedNr[0]+" characters");
-        receiver.recvStop().get();
     }
     @org.junit.Test public void test() {
         testSendMessages(I(
@@ -106,6 +109,14 @@ public class Test {
             messages.add(UUID.randomUUID().toString().repeat(R));
         }
         testSendMessages(messages);
+    }
+    @org.junit.Test public void test3() {
+
+        testSendMessages(List.of(
+            "x".repeat(  CONTENT_FRAME_SIZE + 200),
+            "x".repeat(3*CONTENT_FRAME_SIZE + 500),
+            "x".repeat(8*CONTENT_FRAME_SIZE)
+        ));
     }
     @org.junit.Test public void testException() {
         threaded(() -> receiver.recv(x -> { throw new RuntimeException(); }));

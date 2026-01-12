@@ -41,6 +41,7 @@ public interface ReceiverIf<T> {
                                   RecvOptions           options);
     UVoidFuture   recvWaitStarted();
     UVoidFuture   recvStop       ();
+    UVoidFuture   recvWaitStopped();
     Boolean       isReceiving    ();
     InputStream   getInputStream ();
 
@@ -92,6 +93,9 @@ public interface ReceiverIf<T> {
             }
             @Override public UVoidFuture  recvStop       () {
                 return ReceiverIf.this.recvStop();
+            }
+            @Override public UVoidFuture  recvWaitStopped() {
+                return ReceiverIf.this.recvWaitStopped();
             }
             @Override public Boolean      isReceiving    () {
                 return ReceiverIf.this.isReceiving();

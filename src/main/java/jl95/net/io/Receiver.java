@@ -47,7 +47,7 @@ public class Receiver implements ReceiverIf<byte[]> {
 
     private UVoidFuture recvStopUnchecked() {
         toStop = true; // to be checked in loop, after which the future above will be completed
-        return UVoidFuture.of(stopFuture);
+        return recvWaitStopped();
     }
 
     public final void flushInputStream() {
@@ -90,14 +90,14 @@ public class Receiver implements ReceiverIf<byte[]> {
                                     incoming.set(new byte[N]);
                                     var i = 0;
                                     for (var p: contentPartsList) {
-                                        System.arraycopy(p, i, incoming.get(), 0, p.length);
+                                        System.arraycopy(p, 0, incoming.get(), i, p.length);
                                         i += p.length;
                                     }
                                 }
                                 break;
                             }
                             var sizeFrame = is.readNBytes(SIZE_FRAME_SIZE);
-                            var contentSize = new BigInteger(sizeFrame).intValue();
+                            var contentSize = new BigInteger(1, sizeFrame).intValue();
                             var contentFrame = is.readNBytes(CONTENT_FRAME_SIZE);
                             var contentPart = new byte[contentSize];
                             if (contentSize > 0) {
@@ -148,6 +148,10 @@ public class Receiver implements ReceiverIf<byte[]> {
             throw new NotReceivingException();
         }
         return recvStopUnchecked();
+    }
+    @Override
+    public final UVoidFuture recvWaitStopped() {
+        return UVoidFuture.of(stopFuture);
     }
     @Override
     public final Boolean isReceiving() {

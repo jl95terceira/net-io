@@ -40,7 +40,6 @@ public class Sender implements SenderIf<byte[]> {
     synchronized public final void send(byte[] outgoing) {
         mos.withOutput(os -> { uncheck(() -> {
             try {
-                os.write(CONTENT_AHEAD_SIGNAL);
                 if (outgoing.length > 0) {
                     byte[] sizeFrame;
                     byte[] contentFrame;
@@ -67,10 +66,12 @@ public class Sender implements SenderIf<byte[]> {
                                      contentFrame,
                                      0,
                                      lastFrameContentSize);
+                    os.write(CONTENT_AHEAD_SIGNAL);
                     os.write(sizeFrame);
                     os.write(contentFrame);
                 }
                 else {
+                    os.write(CONTENT_AHEAD_SIGNAL);
                     os.write(SIZE_FRAME_FOR_EMPTY_CONTENT_FRAME);
                     os.write(EMPTY_CONTENT_FRAME);
                 }
