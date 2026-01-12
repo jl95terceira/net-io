@@ -1,5 +1,6 @@
 package jl95.net.io;
 
+import static jl95.lang.SuperPowers.I;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.ServerSocket;
@@ -86,9 +87,20 @@ public class Test {
         receiver.recvStop().get();
     }
     @org.junit.Test public void test() {
+        testSendMessages(I(
+            "Hello", 
+            "World",
+            "", 
+            "This", 
+            "Is", 
+            "A", 
+            "Test"
+        ).toList());
+    }
+    @org.junit.Test public void test2() {
 
         var N = 1000; // nr of messages
-        var R = 10;  // size of each message = R * size of a UUID
+        var R = 20;  // size of each message = R * size of a UUID
         List<String> messages = new ArrayList<>(N);
         for (int i = 0; i < N; i++) {
             messages.add(UUID.randomUUID().toString().repeat(R));

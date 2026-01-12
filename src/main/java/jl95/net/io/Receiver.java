@@ -6,18 +6,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import static jl95.lang.SuperPowers.function;
 import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.strict;
 import static jl95.lang.SuperPowers.uncheck;
-import static jl95.net.io.Util.CONTENT_AHEAD_SIGNAL;
-import static jl95.net.io.Util.CONTENT_FRAME_SIZE;
-import static jl95.net.io.Util.SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
-import static jl95.net.io.Util.SIZE_FRAME_SIZE;
+import static jl95.net.io.Constants.CONTENT_AHEAD_SIGNAL;
+import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
+import static jl95.net.io.Constants.SIZE_FRAME_SIZE;
 
 import jl95.lang.*;
 import jl95.lang.variadic.*;
@@ -105,8 +102,8 @@ public class Receiver implements ReceiverIf<byte[]> {
                             var contentPart = new byte[contentSize];
                             if (contentSize > 0) {
                                 System.arraycopy(contentFrame, 0, contentPart, 0, contentSize);
-                                contentPartsList.add(contentPart);
                             }
+                            contentPartsList.add(contentPart);
                         }
                         return false;
                     }); });

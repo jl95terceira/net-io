@@ -1,11 +1,13 @@
 package jl95.net.io;
 
 import static jl95.lang.SuperPowers.*;
-import static jl95.net.io.Util.CONTENT_FRAME_SIZE;
-import static jl95.net.io.Util.CONTENT_AHEAD_SIGNAL;
-import static jl95.net.io.Util.NO_CONTENT_SIGNAL;
-import static jl95.net.io.Util.SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
-import static jl95.net.io.Util.SIZE_FRAME_SIZE;
+import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
+import static jl95.net.io.Constants.CONTENT_AHEAD_SIGNAL;
+import static jl95.net.io.Constants.EMPTY_CONTENT_FRAME;
+import static jl95.net.io.Constants.NO_CONTENT_SIGNAL;
+import static jl95.net.io.Constants.SIZE_FRAME_FOR_EMPTY_CONTENT_FRAME;
+import static jl95.net.io.Constants.SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
+import static jl95.net.io.Constants.SIZE_FRAME_SIZE;
 
 import java.io.OutputStream;
 import java.math.BigInteger;
@@ -38,6 +40,7 @@ public class Sender implements SenderIf<byte[]> {
     synchronized public final void send(byte[] outgoing) {
         mos.withOutput(os -> { uncheck(() -> {
             try {
+                os.write(CONTENT_AHEAD_SIGNAL);
                 if (outgoing.length > 0) {
                     byte[] sizeFrame;
                     byte[] contentFrame;
@@ -64,14 +67,14 @@ public class Sender implements SenderIf<byte[]> {
                                      contentFrame,
                                      0,
                                      lastFrameContentSize);
-                    os.write(CONTENT_AHEAD_SIGNAL);
                     os.write(sizeFrame);
                     os.write(contentFrame);
-                    os.write(NO_CONTENT_SIGNAL);
                 }
                 else {
-                    os.write(NO_CONTENT_SIGNAL);
+                    os.write(SIZE_FRAME_FOR_EMPTY_CONTENT_FRAME);
+                    os.write(EMPTY_CONTENT_FRAME);
                 }
+                os.write(NO_CONTENT_SIGNAL);
             }
             catch (Exception ex) {
                 throw new SendException(ex);
