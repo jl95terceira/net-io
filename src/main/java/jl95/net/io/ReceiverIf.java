@@ -5,7 +5,6 @@ import static jl95.lang.SuperPowers.constant;
 import java.io.InputStream;
 import java.time.Duration;
 
-import jl95.lang.*;
 import jl95.lang.variadic.*;
 import jl95.util.*;
 
@@ -79,7 +78,7 @@ public interface ReceiverIf<T> {
             return;
         }
     }
-    default <T2> ReceiverIf<T2> adaptedReceiver(Function1<T2, T> adapterFunction) {
+    default <T2> ReceiverIf<T2> adapted(Function1<T2, T> adapterFunction) {
         return new ReceiverIf<>() {
 
             @Override public void         recvWhile      (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {

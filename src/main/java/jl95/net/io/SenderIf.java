@@ -9,7 +9,7 @@ public interface SenderIf<T> {
     void         send           (T outgoing);
     OutputStream getOutputStream();
 
-    default <T2> SenderIf<T2> adaptedSender(Function1<T, T2> adapterFunction) {
+    default <T2> SenderIf<T2> adapted(Function1<T, T2> adapterFunction) {
 
         return new SenderIf<>() {
 
