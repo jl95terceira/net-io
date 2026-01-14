@@ -1,40 +1,102 @@
 package jl95.net.io;
 
-import java.io.InputStream;
-import java.math.BigInteger;
+import static jl95.lang.SuperPowers.constant;
+
 import java.time.Duration;
-import java.time.Instant;
-import java.util.LinkedList;
-import java.util.concurrent.CompletableFuture;
 
-import static jl95.lang.SuperPowers.function;
-import static jl95.lang.SuperPowers.self;
-import static jl95.lang.SuperPowers.sleep;
-import static jl95.lang.SuperPowers.strict;
-import static jl95.lang.SuperPowers.uncheck;
-import static jl95.net.io.Constants.CONTENT_AHEAD_SIGNAL;
-import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
-import static jl95.net.io.Constants.SIZE_FRAME_SIZE;
-
-import jl95.lang.*;
 import jl95.lang.variadic.*;
-import jl95.net.io.managed.ManagedIs;
 import jl95.util.*;
 
-public class Receiver extends GenericReceiver<byte[]> {
+public interface Receiver<T> {
 
-    public static Receiver of(ManagedIs   is) {
-        return new Receiver(is);
-    }
-    public static Receiver of(InputStream is) {
-        return new Receiver(ManagedIs.of(is));
+    record TimeoutInfo(Integer  timeoutsSoFar,
+                       Duration timeoutAccum) {}
+    interface RecvOptions {
+
+        void    onInputException   (Exception ex);
+        void    onHandlingException(Exception ex);
+        void    onInputTimeout     (TimeoutInfo timeoutInfo);
+        Integer inputRetryTimeoutMs();
+        
+        class Editable implements RecvOptions {
+
+            public Method1<Exception>   inputExcHandler     = (ex) -> System.out.printf("Exception on reading input: %s%n", ex);
+            public Method1<Exception>   handlingExcHandler  = (ex) -> System.out.printf("Exception on handling input: %s%n", ex);
+            public Method1<TimeoutInfo> inputTimeoutHandler = (info) ->  {};
+            public Function0<Integer>   inputRetryTimeoutMs = constant(100);
+
+            @Override public void    onHandlingException(Exception ex) { handlingExcHandler .accept(ex); }
+            @Override public void    onInputException   (Exception ex) { inputExcHandler    .accept(ex); }
+            @Override public void    onInputTimeout     (TimeoutInfo info) { inputTimeoutHandler.accept(info); }
+            @Override public Integer inputRetryTimeoutMs()          { return inputRetryTimeoutMs.apply(); }
+        }
+        static RecvOptions defaults() {
+            return new RecvOptions.Editable();
+        }
     }
 
-    private Receiver(ManagedIs mis) {
-        super(mis);
-    }
+    void          recvWhile      (Function1<Boolean, T> incomingCbToContinue,
+                                  RecvOptions           options);
+    UVoidFuture   recvWaitStarted();
+    UVoidFuture   recvStop       ();
+    UVoidFuture   recvWaitStopped();
+    boolean       isReceiving    ();
 
-    @Override protected byte[] deserialize(byte[] data) {
-        return data;
+    default void recvWhile(Function1<Boolean, T> incomingCbToContinue) {
+
+        recvWhile(incomingCbToContinue, RecvOptions.defaults());
+    }
+    default void recv     (Method1<T>            incomingCb,
+                           RecvOptions           options) {
+        recvWhile(incoming -> {
+            incomingCb.accept(incoming);
+            return true;
+        }, options);
+    }
+    default void recv     (Method1<T>            incomingCb) {
+
+        recv(incomingCb, RecvOptions.defaults());
+    }
+    default void recvOnce (Method1<T>            incomingCb,
+                           RecvOptions           options) {
+        recvWhile(incoming -> {
+            incomingCb.accept(incoming);
+            return false;
+        }, options);
+    }
+    default void recvOnce (Method1<T>            incomingCb) {
+        recvOnce(incomingCb, RecvOptions.defaults());
+    }
+    default void ensureStopped() {
+        try {
+            if (!isReceiving()) return;
+            recvStop().get();
+        }
+        catch (BytesIStreamReceiver.NotReceivingException ex) {
+            return;
+        }
+    }
+    default <T2> Receiver<T2> adapted(Function1<T2, T> adapterFunction) {
+        return new Receiver<>() {
+
+            @Override public void         recvWhile      (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
+                Receiver.this.recvWhile(incoming -> {
+                    var adaptedIncoming = adapterFunction.apply(incoming);
+                    return incomingCbToContinue.apply(adaptedIncoming);
+                }, options);
+            }
+            @Override public UVoidFuture  recvWaitStarted() {
+                return Receiver.this.recvWaitStarted();
+            }
+            @Override public UVoidFuture  recvStop       () {
+                return Receiver.this.recvStop();
+            }
+            @Override public UVoidFuture  recvWaitStopped() {
+                return Receiver.this.recvWaitStopped();
+            }
+            @Override public boolean      isReceiving    () {
+                return Receiver.this.isReceiving();
+            }
+        };
     }
 }

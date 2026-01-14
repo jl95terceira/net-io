@@ -31,8 +31,8 @@ public class TestRetriable {
         return String.format("[%s]", String.join(",", I.ofArray(box(bb)).map(b -> Byte.toString(b))));
     }
 
-    public Receiver receiver;
-    public Sender   sender;
+    public BytesIStreamReceiver receiver;
+    public BytesIStreamSender sender;
     public CompletableFuture<byte[]> payloadBackPromise;
     public RetriableIos retriableIos;
     public Integer restartsNr = 0;
@@ -67,7 +67,7 @@ public class TestRetriable {
         uncheck(receiver.getInputStream()::close);
         System.out.println("  new");
         new Thread(() -> {
-            receiver = Receiver.of(uncheck(getSocketByAccept(addr)::getInputStream));
+            receiver = BytesIStreamReceiver.of(uncheck(getSocketByAccept(addr)::getInputStream));
             System.out.println("Restarted receiver OK");
             expectPayload();
         }).start();
@@ -94,8 +94,8 @@ public class TestRetriable {
         var receiverSocketFuture = getSocketByAcceptFuture(addr);
         retriableIos = SimpleRetriableClientIos.of(addr);
         sleep(1000);
-        sender   = Sender.of(retriableIos);
-        receiver = Receiver.of(receiverSocketFuture.get().getInputStream());
+        sender   = BytesIStreamSender.of(retriableIos);
+        receiver = BytesIStreamReceiver.of(receiverSocketFuture.get().getInputStream());
         System.out.println("Connected to receiver");
         expectPayload();
         var payloadMaker = function(() -> String.join("", I.range(10).map(i -> UUID.randomUUID().toString())).getBytes());

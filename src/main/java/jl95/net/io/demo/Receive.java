@@ -1,7 +1,7 @@
 package jl95.net.io.demo;
 
 import jl95.lang.P;
-import jl95.net.io.Receiver;
+import jl95.net.io.BytesIStreamReceiver;
 
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -15,7 +15,7 @@ public class Receive {
         var sock = server.accept();
         System.out.println("Accepted");
         server.close();
-        var recv = Receiver.of(sock.getInputStream());
+        var recv = BytesIStreamReceiver.of(sock.getInputStream());
         var toStop = new P<>(false);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> toStop.set(true)));
         recv.recvWhile(data -> {

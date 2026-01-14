@@ -1,34 +1,21 @@
 package jl95.net.io;
 
-import static jl95.lang.SuperPowers.*;
-import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
-import static jl95.net.io.Constants.CONTENT_AHEAD_SIGNAL;
-import static jl95.net.io.Constants.EMPTY_CONTENT_FRAME;
-import static jl95.net.io.Constants.NO_CONTENT_SIGNAL;
-import static jl95.net.io.Constants.SIZE_FRAME_FOR_EMPTY_CONTENT_FRAME;
-import static jl95.net.io.Constants.SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
-import static jl95.net.io.Constants.SIZE_FRAME_SIZE;
-
 import java.io.OutputStream;
-import java.math.BigInteger;
 
-import jl95.lang.I;
-import jl95.net.io.managed.ManagedOs;
+import jl95.lang.variadic.Function1;
 
-public class Sender extends GenericSender<byte[]> {
+public interface Sender<T> {
 
-    public static Sender of(ManagedOs    os) {
-        return new Sender(os);
-    }
-    public static Sender of(OutputStream os) {
-        return new Sender(ManagedOs.of(os));
-    }
+    void send(T outgoing);
 
-    private Sender(ManagedOs mos) {
-        super(mos);
-    }
+    default <T2> Sender<T2> adapted(Function1<T, T2> adapterFunction) {
 
-    @Override protected byte[] serialize(byte[] data) {
-        return data;
+        return new Sender<>() {
+
+            @Override public void send(T2 outgoing) {
+                var adaptedOutgoing = adapterFunction.apply(outgoing);
+                Sender.this.send(adaptedOutgoing);
+            }
+        };
     }
 }

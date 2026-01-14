@@ -5,7 +5,6 @@ import java.io.InputStream;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
 import jl95.net.io.Is;
-import jl95.net.io.util.InputStreams;
 
 public interface ManagedIs extends Is {
 

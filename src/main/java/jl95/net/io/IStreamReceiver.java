@@ -13,6 +13,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import jl95.lang.I;
 import jl95.lang.P;
@@ -20,55 +22,66 @@ import jl95.lang.variadic.Function1;
 import jl95.net.io.managed.ManagedIs;
 import jl95.util.UVoidFuture;
 
-public abstract class GenericReceiver<T> implements ReceiverIf<T> {
+public abstract class IStreamReceiver<T> implements Receiver<T> {
 
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotReceivingException extends RuntimeException {}
 
-    public static <T> GenericReceiver<T> of(Function1<GenericReceiver<T>,ManagedIs> constructor, ManagedIs   is) {
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIs> constructor, ManagedIs is) {
         return constructor.apply(is);
     }
-    public static <T> GenericReceiver<T> of(Function1<GenericReceiver<T>,ManagedIs> constructor, InputStream is) {
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIs> constructor, InputStream is) {
         return constructor.apply(ManagedIs.of(is));
     }
 
-    private final    ManagedIs               mis;
-    private volatile Boolean                 isReceiving = false;
-    private volatile Boolean                 toStop      = false;
-    private          CompletableFuture<Void> startFuture = new CompletableFuture<>();
-    private          CompletableFuture<Void> stopFuture  = new CompletableFuture<>();
+    private final ManagedIs mis;
+    private final AtomicBoolean isReceiving;
+    private final AtomicBoolean toStop;
+    private final AtomicReference<CompletableFuture<Void>> startFuture;
+    private final AtomicReference<CompletableFuture<Void>> stopFuture;
 
-    public GenericReceiver(ManagedIs mis) {
+    private IStreamReceiver(ManagedIs mis,
+                            AtomicBoolean isReceiving,
+                            AtomicBoolean toStop,
+                            AtomicReference<CompletableFuture<Void>> startFuture,
+                            AtomicReference<CompletableFuture<Void>> stopFuture) {
+        this.mis          = mis;
+        this.isReceiving  = isReceiving;
+        this.toStop       = toStop;
+        this.startFuture  = startFuture;
+        this.stopFuture   = stopFuture;
+    }
 
-        this.mis = mis;
+    public IStreamReceiver(ManagedIs mis) {
+
+        this(mis, new AtomicBoolean(false), new AtomicBoolean(false), new AtomicReference<>(new CompletableFuture<>()), new AtomicReference<>(new CompletableFuture<>()));
         flushInputStream();
     }
 
     private UVoidFuture recvStopUnchecked() {
-        toStop = true; // to be checked in loop, after which the future above will be completed
+        toStop.set(true); // to be checked in loop, after which the future above will be completed
         return recvWaitStopped();
     }
 
-    public final void flushInputStream() {
+    public InputStream getInputStream() { return mis.getInputStream(); }
+    public void flushInputStream() {
         mis.withInput(is -> {});
     }
 
     protected abstract T deserialize(byte[] data);
 
-    @Override
-    synchronized
-    public final void recvWhile(Function1<Boolean, T> incomingCbToContinue,
-                                RecvOptions options) {
-        if (isReceiving) {
+    @Override public synchronized void recvWhile(Function1<Boolean, T> incomingCbToContinue,
+                                                 RecvOptions options) {
+        if (isReceiving.get()) {
             throw new AlreadyReceivingException();
         }
-        toStop      = false;
-        stopFuture  = new CompletableFuture<>();
-        isReceiving = true;
-        startFuture.complete(null);
+        toStop.set(false);
+        stopFuture.set(new CompletableFuture<>());
+        isReceiving.set(true);
+        startFuture.get().complete(null);
         var timeouts     = new P<>(0);
         var timeoutT0    = new P<>(Instant.now());
-        while (!toStop) {
+        while (!toStop.get()) {
             var incoming = new P<byte[]>(null);
             try {
                 try {
@@ -83,7 +96,7 @@ public abstract class GenericReceiver<T> implements ReceiverIf<T> {
                         timeoutT0.set(Instant.now());
                         incoming.set(old -> null);
                         var contentPartsList = strict(new LinkedList<byte[]>());
-                        while (!toStop) {
+                        while (!toStop.get()) {
                             var signal = is.read();
                             if (signal != CONTENT_AHEAD_SIGNAL) {
                                 if (!contentPartsList.isEmpty()) {
@@ -120,7 +133,7 @@ public abstract class GenericReceiver<T> implements ReceiverIf<T> {
                     if (incoming.get() != null) {
                         var toContinue = incomingCbToContinue.apply(deserialize(incoming.get()));
                         if (!toContinue) {
-                            toStop = true;
+                            toStop.set(true);
                         }
                     }
                 }
@@ -134,39 +147,32 @@ public abstract class GenericReceiver<T> implements ReceiverIf<T> {
                 break;
             }
         }
-        isReceiving = false;
-        startFuture = new CompletableFuture<>();
-        stopFuture.complete(null);
+        isReceiving.set(false);
+        startFuture.set(new CompletableFuture<>());
+        stopFuture.get().complete(null);
     }
-    @Override
-    public final UVoidFuture recvWaitStarted() {
-        return UVoidFuture.of(startFuture);
+    @Override public UVoidFuture recvWaitStarted() {
+        return UVoidFuture.of(startFuture.get());
     }
-    @Override
-    public final UVoidFuture recvStop() {
+    @Override public UVoidFuture recvStop() {
 
-        if (!isReceiving) {
+        if (!isReceiving.get()) {
             throw new NotReceivingException();
         }
         return recvStopUnchecked();
     }
-    @Override
-    public final UVoidFuture recvWaitStopped() {
-        return UVoidFuture.of(stopFuture);
+    @Override public UVoidFuture recvWaitStopped() {
+        return UVoidFuture.of(stopFuture.get());
     }
-    @Override
-    public final Boolean isReceiving() {
-        return isReceiving;
+    @Override public boolean isReceiving() {
+        return isReceiving.get();
     }
-    @Override
-    public final InputStream getInputStream() { return mis.getInputStream(); }
-    @Override
-    public <U> GenericReceiver<U> adapted(Function1<U,T> adapter) {
+    @Override public <U> IStreamReceiver<U> adapted(Function1<U,T> adapter) {
 
-        return new GenericReceiver<>(mis) {
+        return new IStreamReceiver<>(mis, isReceiving, toStop, startFuture, stopFuture) {
 
             @Override protected U deserialize(byte[] data) {
-                return adapter.apply(GenericReceiver.this.deserialize(data));
+                return adapter.apply(IStreamReceiver.this.deserialize(data));
             }
         };
     }

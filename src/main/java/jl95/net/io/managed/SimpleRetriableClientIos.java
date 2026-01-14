@@ -5,8 +5,6 @@ import jl95.net.io.Util;
 
 import java.net.InetSocketAddress;
 
-import static jl95.lang.SuperPowers.I;
-
 public class SimpleRetriableClientIos extends SimpleRetriableIos {
 
     public static SimpleRetriableClientIos of(InetSocketAddress peerAddress) {

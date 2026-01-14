@@ -16,35 +16,35 @@ import jl95.lang.I;
 import jl95.lang.variadic.Function1;
 import jl95.net.io.managed.ManagedOs;
 
-public abstract class GenericSender<T> implements SenderIf<T> {
+public abstract class IStreamSender<T> implements Sender<T> {
 
     public static class SendException          extends RuntimeException {
         public SendException(Exception ex) {super(ex);}
     }
 
-    public static <T> GenericSender<T> of(Function1<GenericSender<T>,ManagedOs> constructor, ManagedOs    os) {
+    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOs> constructor, ManagedOs os) {
         return constructor.apply(os);
     }
-    public static <T> GenericSender<T> of(Function1<GenericSender<T>,ManagedOs> constructor, OutputStream os) {
+    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOs> constructor, OutputStream os) {
         return constructor.apply(ManagedOs.of(os));
     }
 
     private final ManagedOs mos;
 
-    public GenericSender(ManagedOs mos) {
+    public IStreamSender(ManagedOs mos) {
 
         this.mos = mos;
         flushOutputStream();
     }
 
-    public final void flushOutputStream() {
+    public OutputStream getOutputStream() { return mos.getOutputStream(); }
+    public void flushOutputStream() {
         mos.withOutput(os -> {});
     }
 
     protected abstract byte[] serialize(T data);
 
-    @Override
-    synchronized public final void send(T data) {
+    @Override public synchronized void send(T data) {
         var outgoing = serialize(data);
         mos.withOutput(os -> { uncheck(() -> {
             try {
@@ -90,15 +90,10 @@ public abstract class GenericSender<T> implements SenderIf<T> {
             }
         }); });
     }
-
-    @Override
-    public final OutputStream getOutputStream() { return mos.getOutputStream(); }
-
-    @Override
-    public <U> GenericSender<U> adapted(Function1<T,U> adapter) {
-        return new GenericSender<U>(mos) {
+    @Override public <U> IStreamSender<U> adapted(Function1<T,U> adapter) {
+        return new IStreamSender<U>(mos) {
             @Override protected byte[] serialize(U data) {
-                return GenericSender.this.serialize(adapter.apply(data));
+                return IStreamSender.this.serialize(adapter.apply(data));
             }
         };
     }

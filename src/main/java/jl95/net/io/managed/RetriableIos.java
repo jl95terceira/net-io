@@ -12,7 +12,6 @@ import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
-import jl95.lang.*;
 import jl95.lang.variadic.*;
 import jl95.net.io.Closeable;
 import jl95.net.io.CloseableIos;
@@ -77,7 +76,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
     }
 
     protected abstract InetSocketAddress loadAddress     ();
-    protected abstract CloseableIos      connect         (InetSocketAddress addr);
+    protected abstract CloseableIos connect         (InetSocketAddress addr);
     protected abstract void              onIosException  (InetSocketAddress addr, Exception ex);
     protected          void              retryExecute    (Method0           f) { new Thread(f::accept).start(); }
     protected          void              onToStopRetries () {}
@@ -94,7 +93,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
             reconnect(addr);
         }
     }
-    public final CloseableIos   get               (InetSocketAddress addr) {
+    public final CloseableIos get               (InetSocketAddress addr) {
         return iosMapByAddr.get(addr);
     }
     public final Iterable<CloseableIos>

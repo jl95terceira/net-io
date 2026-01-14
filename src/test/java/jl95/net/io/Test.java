@@ -2,14 +2,15 @@ package jl95.net.io;
 
 import static jl95.lang.SuperPowers.I;
 import static jl95.lang.SuperPowers.uncheck;
+import static jl95.lang.SuperPowers.unchecked;
 import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
 
 import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
-import jl95.lang.P;
+import org.junit.Assert;
+
 import jl95.net.io.collections.ReceiverAdaptersCollection;
 import jl95.net.io.collections.SenderAdaptersCollections;
 
@@ -20,17 +21,19 @@ public class Test {
 
     static { Runtime.getRuntime().addShutdownHook(new Thread(() -> { toStop = true; })); }
 
-    private ReceiverIf<String> receiver;
-    private SenderIf<String> sender;
+    private Receiver<String> receiver;
+    private Sender<String> sender;
+    private List<Runnable> cleanupRunnables = new ArrayList<>();
 
     @org.junit.Before
     public void setUp() throws Exception {
         var serversock = new ServerSocket();
         serversock.bind(addr);
-        CompletableFuture<ReceiverIf<String>> receiverFuture = new CompletableFuture<>();
+        CompletableFuture<Receiver<String>> receiverFuture = new CompletableFuture<>();
         new Thread(() -> {
             try {
                 var sock = serversock.accept();
+                cleanupRunnables.add(unchecked(sock::close)::accept);
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                     try {
                         sock.close();
@@ -38,24 +41,24 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(ReceiverAdaptersCollection.asStringReceiver(Receiver.of(Ios.fromSocketLazy(sock).getInputStream())));
+                receiverFuture.complete(ReceiverAdaptersCollection.asStringReceiver(BytesIStreamReceiver.of(Ios.fromSocketLazy(sock).getInputStream())));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
         }).start();
         var clientSocket = new java.net.Socket();
+        cleanupRunnables.add(unchecked(clientSocket::close)::accept);
         clientSocket.connect(addr);
-        sender   = SenderAdaptersCollections.asStringSender(Sender.of(Ios.fromSocketLazy(clientSocket).getOutputStream()));
+        sender   = SenderAdaptersCollections.asStringSender(BytesIStreamSender.of(Ios.fromSocketLazy(clientSocket).getOutputStream()));
         receiver = receiverFuture.get();
     }
     @org.junit.After
     public void tearDown() throws Exception {
-        sender.getOutputStream().close();
         if (receiver.isReceiving()) {
             receiver.recvStop().get();
         }
-        receiver.getInputStream().close();
+        cleanupRunnables.forEach(Runnable::run);
     }
 
     public static void threaded(Runnable runnable) {
@@ -64,12 +67,12 @@ public class Test {
 
     @org.junit.Test public void testStartStop() {
 
-        org.junit.Assert.assertFalse(receiver.isReceiving());
+        Assert.assertFalse(receiver.isReceiving());
         threaded(() -> receiver.recv(x -> {}));
         receiver.recvWaitStarted().get();
-        org.junit.Assert.assertTrue(receiver.isReceiving());
+        Assert.assertTrue(receiver.isReceiving());
         receiver.recvStop().get();
-        org.junit.Assert.assertFalse(receiver.isReceiving());
+        Assert.assertFalse(receiver.isReceiving());
     }
     private void testSendMessages(List<String> messages) {
 
@@ -78,11 +81,12 @@ public class Test {
         var messagesSendIterator = messages.iterator();
         threaded(() -> receiver.recvWhile(message -> {
             charsReceivedNr[0] += message.length();
-            org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
-            org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
+            Assert.assertTrue  (messagesSendIterator.hasNext());
+            Assert.assertEquals(messagesSendIterator.next(), message);
             return messagesSendIterator.hasNext();
         }));
         receiver.recvWaitStarted().get();
+        Assert.assertTrue(receiver.isReceiving());
         for (var message: messages) {
              sender.send(message);
         }
@@ -91,12 +95,12 @@ public class Test {
     }
     @org.junit.Test public void test() {
         testSendMessages(I(
-            "Hello", 
+            "Hello",
             "World",
-            "", 
-            "This", 
-            "Is", 
-            "A", 
+            "",
+            "This",
+            "Is",
+            "A",
             "Test"
         ).toList());
     }

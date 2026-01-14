@@ -5,12 +5,10 @@ import static jl95.lang.SuperPowers.uncheck;
 import static jl95.lang.SuperPowers.unchecked;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
 import jl95.net.io.util.InputStreams;
-import jl95.net.io.util.OutputStreams;
 
 public interface Is {
 
