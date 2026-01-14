@@ -63,7 +63,9 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         return recvWaitStopped();
     }
 
-    public InputStream getInputStream() { return mis.getInputStream(); }
+    public InputStream getInputStream() {
+        return mis.getInputStream();
+    }
     public void flushInputStream() {
         mis.withInput(is -> {});
     }
