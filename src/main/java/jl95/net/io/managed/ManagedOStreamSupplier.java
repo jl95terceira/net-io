@@ -4,9 +4,9 @@ import java.io.OutputStream;
 
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
-import jl95.net.io.Os;
+import jl95.net.io.OStreamSupplier;
 
-public interface ManagedOs extends Os {
+public interface ManagedOStreamSupplier extends OStreamSupplier {
 
     <T> T withOutput(Function1<T, OutputStream> f);
 
@@ -20,7 +20,7 @@ public interface ManagedOs extends Os {
 
     @Override default OutputStream getOutputStream() { return withOutput(os -> os); }
 
-    static ManagedOs of(OutputStream os) { return new ManagedOs() {
+    static ManagedOStreamSupplier of(OutputStream os) { return new ManagedOStreamSupplier() {
         @Override
         public <T> T withOutput(Function1<T, OutputStream> f) {
             return f.apply(os);

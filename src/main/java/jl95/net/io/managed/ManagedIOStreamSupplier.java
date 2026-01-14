@@ -6,10 +6,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
-import jl95.net.io.CloseableIos;
-import jl95.net.io.Ios;
+import jl95.net.io.CloseableIOStreamSupplier;
+import jl95.net.io.IOStreamSupplier;
 
-public interface ManagedIos extends ManagedIs, ManagedOs {
+public interface ManagedIOStreamSupplier extends ManagedIStreamSupplier, ManagedOStreamSupplier {
 
     <T> T withIo(Function2<T, InputStream, OutputStream> f);
 
@@ -20,9 +20,9 @@ public interface ManagedIos extends ManagedIs, ManagedOs {
             return null;
         });
     }
-    default CloseableIos getIo() { return withIo(function((i,o) -> CloseableIos.of(i,o))); }
+    default CloseableIOStreamSupplier getIo() { return withIo(function((i,o) -> CloseableIOStreamSupplier.of(i,o))); }
 
-    static ManagedIos of(Ios ios) { return new ManagedIos() {
+    static ManagedIOStreamSupplier of(IOStreamSupplier ios) { return new ManagedIOStreamSupplier() {
 
         @Override
         public <T> T withIo(Function2<T, InputStream, OutputStream> f) {

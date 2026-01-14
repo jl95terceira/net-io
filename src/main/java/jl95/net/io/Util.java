@@ -16,8 +16,8 @@ public class Util {
 
     private Util() {}
 
-    public static CloseableIos getIoFromSocket(Socket            socket) {
-        return new CloseableIos() {
+    public static CloseableIOStreamSupplier getIoFromSocket(Socket            socket) {
+        return new CloseableIOStreamSupplier() {
             @Override public InputStream getInputStream() { return uncheck(socket::getInputStream); }
             @Override public OutputStream getOutputStream() { return uncheck(socket::getOutputStream); }
             @Override public void         close () {
@@ -27,12 +27,12 @@ public class Util {
             }
         };
     }
-    public static CloseableIos getIoAsClient  (InetSocketAddress addr) {
+    public static CloseableIOStreamSupplier getIoAsClient  (InetSocketAddress addr) {
         var socket = new Socket();
         uncheck(() -> socket.connect(addr));
         return getIoFromSocket(socket);
     }
-    public static CloseableIos getIoAsServer  (InetSocketAddress addr, Integer clientConnectionTimeoutMs) {
+    public static CloseableIOStreamSupplier getIoAsServer  (InetSocketAddress addr, Integer clientConnectionTimeoutMs) {
         var clientSocketFuture = new CompletableFuture<Socket>();
         var server = Server.fromSocket(jl95.net.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
         server.setAcceptCb((self, socket) -> {
@@ -46,5 +46,5 @@ public class Util {
         uncheck(server.getSocket()::close); // release bind address
         return getIoFromSocket(clientSocket);
     }
-    public static CloseableIos getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, null); }
+    public static CloseableIOStreamSupplier getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, null); }
 }

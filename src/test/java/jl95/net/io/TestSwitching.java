@@ -9,8 +9,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import jl95.lang.*;
-import jl95.net.io.managed.SwitchingRetriableClientIos;
-import jl95.net.io.managed.SwitchingRetriableIos;
+import jl95.net.io.managed.SwitchingRetriableClientIOStream;
+import jl95.net.io.managed.SwitchingRetriableIOStream;
 
 public class TestSwitching {
 
@@ -35,7 +35,7 @@ public class TestSwitching {
     public BytesIStreamReceiver receiver2;
     public BytesIStreamReceiver receiver3;
     public BytesIStreamSender sender;
-    public SwitchingRetriableIos switchingIos;
+    public SwitchingRetriableIOStream switchingIos;
 
     private void assertReceivesPayload        (byte[] payload, BytesIStreamReceiver receiver) throws Exception {
         System.out.println("Payload to test: "+repr(payload));
@@ -86,7 +86,7 @@ public class TestSwitching {
         var receiverSocket1Future = getSocketByAcceptFuture(addr1);
         var receiverSocket2Future = getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = getSocketByAcceptFuture(addr3);
-        switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
+        switchingIos = SwitchingRetriableClientIOStream.of(addr1, addr2, addr3);
         switchingIos.setReswitchHandler((addr_prev,addr_new) -> {
             System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
         });
@@ -126,7 +126,7 @@ public class TestSwitching {
         var receiverSocket1Future = getSocketByAcceptFuture(addr1);
         var receiverSocket2Future = getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = getSocketByAcceptFuture(addr3);
-        switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
+        switchingIos = SwitchingRetriableClientIOStream.of(addr1, addr2, addr3);
         switchingIos.setReswitchHandler((addr_prev,addr_new) -> {
             System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
         });

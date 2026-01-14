@@ -14,14 +14,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import jl95.lang.variadic.*;
 import jl95.net.io.Closeable;
-import jl95.net.io.CloseableIos;
-import jl95.net.io.Ios;
+import jl95.net.io.CloseableIOStreamSupplier;
+import jl95.net.io.IOStreamSupplier;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
-public abstract class RetriableIos implements ManagedIos, Closeable {
+public abstract class RetriableIOStream implements ManagedIOStreamSupplier, Closeable {
 
-    private final StrictMap<InetSocketAddress, CloseableIos>iosMapByAddr        = strict(new ConcurrentHashMap<>());
+    private final StrictMap<InetSocketAddress, CloseableIOStreamSupplier>iosMapByAddr        = strict(new ConcurrentHashMap<>());
     private final StrictMap<InetSocketAddress, Object>      iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
     private final StrictSet<InetSocketAddress>              addrsReconnecting   = strict(new HashSet<>());
     private       Boolean                                   toStopRetries       = false;
@@ -30,12 +30,12 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
     private       Function0<Integer>                        retryTimeoutMs;
     private       Function1<Boolean, Integer>               retryPredicate;
     private       Function0<Integer>                        reconnectTimeoutMs;
-    private       Method2<InetSocketAddress, CloseableIos>  onConnection;
+    private       Method2<InetSocketAddress, CloseableIOStreamSupplier>  onConnection;
 
-    private <T> T   retried    (Function1<T, Ios> f) {
+    private <T> T   retried    (Function1<T, IOStreamSupplier> f) {
         while (!toStopRetries) {
             var addr = loadAddress();
-            CloseableIos ios = null;
+            CloseableIOStreamSupplier ios = null;
             var gotIosError  = false;
             var deferOnError = method(() -> {});
             try {
@@ -70,13 +70,13 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
         };
     }
 
-    protected RetriableIos() {
+    protected RetriableIOStream() {
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopRetries));
     }
 
     protected abstract InetSocketAddress loadAddress     ();
-    protected abstract CloseableIos connect         (InetSocketAddress addr);
+    protected abstract CloseableIOStreamSupplier connect         (InetSocketAddress addr);
     protected abstract void              onIosException  (InetSocketAddress addr, Exception ex);
     protected          void              retryExecute    (Method0           f) { new Thread(f::accept).start(); }
     protected          void              onToStopRetries () {}
@@ -93,10 +93,10 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
             reconnect(addr);
         }
     }
-    public final CloseableIos get               (InetSocketAddress addr) {
+    public final CloseableIOStreamSupplier get               (InetSocketAddress addr) {
         return iosMapByAddr.get(addr);
     }
-    public final Iterable<CloseableIos>
+    public final Iterable<CloseableIOStreamSupplier>
                                 getAll            () {return iosMapByAddr.values();}
     @Override
     synchronized
@@ -134,7 +134,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
         retryExecute(() -> {
             synchronized (getReconnectSync(addr)) {
                 while (!toStopRetries()) {
-                    CloseableIos ios;
+                    CloseableIOStreamSupplier ios;
                     try {
                         ios = connect(addr);
                         try {
@@ -160,7 +160,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
     public final Boolean        isConnected       (InetSocketAddress addr) {
         return iosMapByAddr.containsKey(addr);
     }
-    public final void           setOnConnection   (Method2<InetSocketAddress, CloseableIos> m) {
+    public final void           setOnConnection   (Method2<InetSocketAddress, CloseableIOStreamSupplier> m) {
         onConnection = m;
     }
     public final void           setRetryTimeoutMs (Function0<Integer> t) { this.retryTimeoutMs = t; }

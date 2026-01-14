@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import jl95.lang.I;
 import jl95.lang.P;
 import jl95.lang.variadic.Function1;
-import jl95.net.io.managed.ManagedIs;
+import jl95.net.io.managed.ManagedIStreamSupplier;
 import jl95.util.UVoidFuture;
 
 public abstract class IStreamReceiver<T> implements Receiver<T> {
@@ -27,20 +27,20 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotReceivingException extends RuntimeException {}
 
-    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIs> constructor, ManagedIs is) {
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStreamSupplier> constructor, ManagedIStreamSupplier is) {
         return constructor.apply(is);
     }
-    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIs> constructor, InputStream is) {
-        return constructor.apply(ManagedIs.of(is));
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStreamSupplier> constructor, InputStream is) {
+        return constructor.apply(ManagedIStreamSupplier.of(is));
     }
 
-    private final ManagedIs mis;
+    private final ManagedIStreamSupplier mis;
     private final AtomicBoolean isReceiving;
     private final AtomicBoolean toStop;
     private final AtomicReference<CompletableFuture<Void>> startFuture;
     private final AtomicReference<CompletableFuture<Void>> stopFuture;
 
-    private IStreamReceiver(ManagedIs mis,
+    private IStreamReceiver(ManagedIStreamSupplier mis,
                             AtomicBoolean isReceiving,
                             AtomicBoolean toStop,
                             AtomicReference<CompletableFuture<Void>> startFuture,
@@ -52,7 +52,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         this.stopFuture   = stopFuture;
     }
 
-    public IStreamReceiver(ManagedIs mis) {
+    public IStreamReceiver(ManagedIStreamSupplier mis) {
 
         this(mis, new AtomicBoolean(false), new AtomicBoolean(false), new AtomicReference<>(new CompletableFuture<>()), new AtomicReference<>(new CompletableFuture<>()));
         flushInputStream();

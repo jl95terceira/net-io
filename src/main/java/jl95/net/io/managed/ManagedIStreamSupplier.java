@@ -4,9 +4,9 @@ import java.io.InputStream;
 
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
-import jl95.net.io.Is;
+import jl95.net.io.IStreamSupplier;
 
-public interface ManagedIs extends Is {
+public interface ManagedIStreamSupplier extends IStreamSupplier {
 
     <T> T withInput (Function1<T, InputStream>  f);
 
@@ -20,7 +20,7 @@ public interface ManagedIs extends Is {
 
     @Override default InputStream getInputStream() { return withInput(is -> is);}
 
-    static ManagedIs of(InputStream is) { return new ManagedIs() {
+    static ManagedIStreamSupplier of(InputStream is) { return new ManagedIStreamSupplier() {
         @Override
         public <T> T withInput(Function1<T, InputStream> f) {
             return f.apply(is);

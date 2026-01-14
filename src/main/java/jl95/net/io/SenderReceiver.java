@@ -5,7 +5,7 @@ import static jl95.lang.SuperPowers.constant;
 import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
-import jl95.net.io.managed.ManagedIos;
+import jl95.net.io.managed.ManagedIOStreamSupplier;
 
 public interface SenderReceiver<S, R> {
 
@@ -30,16 +30,16 @@ public interface SenderReceiver<S, R> {
                                                   Receiver<R> r) {
         return of(constant(s), constant(r));
     }
-    static SenderReceiver<byte[], byte[]> fromIo        (Ios ios) {
+    static SenderReceiver<byte[], byte[]> fromIo        (IOStreamSupplier ios) {
         return ofConstant(BytesIStreamSender.of(ios.getOutputStream()), BytesIStreamReceiver.of(ios.getInputStream()));
     }
     static SenderReceiver<byte[], byte[]> fromSocket    (Socket socket) {
-        return fromIo(Ios.fromSocket(socket));
+        return fromIo(IOStreamSupplier.fromSocket(socket));
     }
     static SenderReceiver<byte[], byte[]> fromSocketLazy(Socket socket) {
-        return fromIo(Ios.fromSocketLazy(socket));
+        return fromIo(IOStreamSupplier.fromSocketLazy(socket));
     }
-    static SenderReceiver<byte[], byte[]> fromManagedIo (ManagedIos ios) {
+    static SenderReceiver<byte[], byte[]> fromManagedIo (ManagedIOStreamSupplier ios) {
         return ofConstant(BytesIStreamSender.of(ios), BytesIStreamReceiver.of(ios));
     }
 }

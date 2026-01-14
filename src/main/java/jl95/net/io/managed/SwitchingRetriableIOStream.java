@@ -17,7 +17,7 @@ import jl95.lang.variadic.Method2;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
-public abstract class SwitchingRetriableIos extends RetriableIos {
+public abstract class SwitchingRetriableIOStream extends RetriableIOStream {
 
     public static class NoAddressesException      extends RuntimeException {}
     public static class NoMoreReswitchesException extends RuntimeException {}
@@ -39,7 +39,7 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
         sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
     }
 
-    protected SwitchingRetriableIos(Iterable<InetSocketAddress> peerAddresses) {
+    protected SwitchingRetriableIOStream(Iterable<InetSocketAddress> peerAddresses) {
 
         I.of(peerAddresses).to(addrsSet);
         I.of(peerAddresses).to(addrsList);

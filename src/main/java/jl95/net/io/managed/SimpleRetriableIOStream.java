@@ -6,12 +6,12 @@ import java.net.InetSocketAddress;
 
 import static jl95.lang.SuperPowers.*;
 
-public abstract class SimpleRetriableIos extends RetriableIos {
+public abstract class SimpleRetriableIOStream extends RetriableIOStream {
 
     private final InetSocketAddress peerAddress;
     private       Method0           reconnectHandler = null;
 
-    protected SimpleRetriableIos(InetSocketAddress peerAddress) {
+    protected SimpleRetriableIOStream(InetSocketAddress peerAddress) {
 
         this.peerAddress = peerAddress;
         put(peerAddress);

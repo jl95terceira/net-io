@@ -8,18 +8,18 @@ import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.strict;
 import static jl95.lang.SuperPowers.uncheck;
 
-import jl95.net.io.managed.ManagedIs;
+import jl95.net.io.managed.ManagedIStreamSupplier;
 
 public class BytesIStreamReceiver extends IStreamReceiver<byte[]> {
 
-    public static BytesIStreamReceiver of(ManagedIs is) {
+    public static BytesIStreamReceiver of(ManagedIStreamSupplier is) {
         return new BytesIStreamReceiver(is);
     }
     public static BytesIStreamReceiver of(InputStream is) {
-        return new BytesIStreamReceiver(ManagedIs.of(is));
+        return new BytesIStreamReceiver(ManagedIStreamSupplier.of(is));
     }
 
-    private BytesIStreamReceiver(ManagedIs mis) {
+    private BytesIStreamReceiver(ManagedIStreamSupplier mis) {
         super(mis);
     }
 

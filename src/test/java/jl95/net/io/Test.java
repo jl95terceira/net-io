@@ -41,7 +41,8 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(ReceiverAdaptersCollection.asStringReceiver(BytesIStreamReceiver.of(Ios.fromSocketLazy(sock).getInputStream())));
+                receiverFuture.complete(ReceiverAdaptersCollection.asStringReceiver(BytesIStreamReceiver.of(
+                        IOStreamSupplier.fromSocketLazy(sock).getInputStream())));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -50,7 +51,7 @@ public class Test {
         var clientSocket = new java.net.Socket();
         cleanupRunnables.add(unchecked(clientSocket::close)::accept);
         clientSocket.connect(addr);
-        sender   = SenderAdaptersCollections.asStringSender(BytesIStreamSender.of(Ios.fromSocketLazy(clientSocket).getOutputStream()));
+        sender   = SenderAdaptersCollections.asStringSender(BytesIStreamSender.of(IOStreamSupplier.fromSocketLazy(clientSocket).getOutputStream()));
         receiver = receiverFuture.get();
     }
     @org.junit.After

@@ -11,14 +11,14 @@ import jl95.lang.variadic.Function0;
 import jl95.net.io.util.InputStreams;
 import jl95.net.io.util.OutputStreams;
 
-public interface Ios {
+public interface IOStreamSupplier {
 
     InputStream  getInputStream ();
     OutputStream getOutputStream();
 
-    static Ios of        (Function0<InputStream>  in,
+    static IOStreamSupplier of        (Function0<InputStream>  in,
                           Function0<OutputStream> out) {
-        return new Ios() {
+        return new IOStreamSupplier() {
             @Override public InputStream  getInputStream () {
                 return in .apply();
             }
@@ -27,16 +27,16 @@ public interface Ios {
             }
         };
     }
-    static Ios ofConstant(InputStream  in,
+    static IOStreamSupplier ofConstant(InputStream  in,
                           OutputStream out) {
         return of(constant(in), constant(out));
     }
-    static Ios fromSocket    (Socket socket) {
+    static IOStreamSupplier fromSocket    (Socket socket) {
 
-        return Ios.ofConstant(uncheck(socket::getInputStream), uncheck(socket::getOutputStream));
+        return IOStreamSupplier.ofConstant(uncheck(socket::getInputStream), uncheck(socket::getOutputStream));
     }
-    static Ios fromSocketLazy(Socket socket) {
+    static IOStreamSupplier fromSocketLazy(Socket socket) {
 
-        return Ios.ofConstant(InputStreams.getLazy(unchecked(socket::getInputStream)), OutputStreams.getLazy(unchecked(socket::getOutputStream)));
+        return IOStreamSupplier.ofConstant(InputStreams.getLazy(unchecked(socket::getInputStream)), OutputStreams.getLazy(unchecked(socket::getOutputStream)));
     }
 }

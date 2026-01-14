@@ -14,7 +14,7 @@ import java.math.BigInteger;
 
 import jl95.lang.I;
 import jl95.lang.variadic.Function1;
-import jl95.net.io.managed.ManagedOs;
+import jl95.net.io.managed.ManagedOStreamSupplier;
 
 public abstract class IStreamSender<T> implements Sender<T> {
 
@@ -22,16 +22,16 @@ public abstract class IStreamSender<T> implements Sender<T> {
         public SendException(Exception ex) {super(ex);}
     }
 
-    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOs> constructor, ManagedOs os) {
+    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOStreamSupplier> constructor, ManagedOStreamSupplier os) {
         return constructor.apply(os);
     }
-    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOs> constructor, OutputStream os) {
-        return constructor.apply(ManagedOs.of(os));
+    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOStreamSupplier> constructor, OutputStream os) {
+        return constructor.apply(ManagedOStreamSupplier.of(os));
     }
 
-    private final ManagedOs mos;
+    private final ManagedOStreamSupplier mos;
 
-    public IStreamSender(ManagedOs mos) {
+    public IStreamSender(ManagedOStreamSupplier mos) {
 
         this.mos = mos;
         flushOutputStream();

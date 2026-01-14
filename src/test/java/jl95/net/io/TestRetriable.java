@@ -1,8 +1,8 @@
 package jl95.net.io;
 
 import jl95.lang.I;
-import jl95.net.io.managed.RetriableIos;
-import jl95.net.io.managed.SimpleRetriableClientIos;
+import jl95.net.io.managed.RetriableIOStream;
+import jl95.net.io.managed.SimpleRetriableClientIOStream;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;
@@ -34,7 +34,7 @@ public class TestRetriable {
     public BytesIStreamReceiver receiver;
     public BytesIStreamSender sender;
     public CompletableFuture<byte[]> payloadBackPromise;
-    public RetriableIos retriableIos;
+    public RetriableIOStream retriableIos;
     public Integer restartsNr = 0;
 
     private void assertReceivesPayload(byte[] payload) throws Exception {
@@ -92,7 +92,7 @@ public class TestRetriable {
     @org.junit.Test
     public void test() throws Exception {
         var receiverSocketFuture = getSocketByAcceptFuture(addr);
-        retriableIos = SimpleRetriableClientIos.of(addr);
+        retriableIos = SimpleRetriableClientIOStream.of(addr);
         sleep(1000);
         sender   = BytesIStreamSender.of(retriableIos);
         receiver = BytesIStreamReceiver.of(receiverSocketFuture.get().getInputStream());
