@@ -51,7 +51,7 @@ public class Test {
         var clientSocket = new java.net.Socket();
         cleanupRunnables.add(unchecked(clientSocket::close)::accept);
         clientSocket.connect(addr);
-        sender   = SenderAdaptersCollections.asStringSender(BytesIStreamSender.of(IOStreamSupplier.fromSocketLazy(clientSocket).getOutputStream()));
+        sender   = SenderAdaptersCollections.asStringSender(BytesOStreamSender.of(IOStreamSupplier.fromSocketLazy(clientSocket).getOutputStream()));
         receiver = receiverFuture.get();
     }
     @org.junit.After

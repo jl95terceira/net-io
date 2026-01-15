@@ -16,22 +16,22 @@ import jl95.lang.I;
 import jl95.lang.variadic.Function1;
 import jl95.net.io.managed.ManagedOStreamSupplier;
 
-public abstract class IStreamSender<T> implements Sender<T> {
+public abstract class OStreamSender<T> implements Sender<T> {
 
     public static class SendException          extends RuntimeException {
         public SendException(Exception ex) {super(ex);}
     }
 
-    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOStreamSupplier> constructor, ManagedOStreamSupplier os) {
+    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStreamSupplier> constructor, ManagedOStreamSupplier os) {
         return constructor.apply(os);
     }
-    public static <T> IStreamSender<T> of(Function1<IStreamSender<T>, ManagedOStreamSupplier> constructor, OutputStream os) {
+    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStreamSupplier> constructor, OutputStream os) {
         return constructor.apply(ManagedOStreamSupplier.of(os));
     }
 
     private final ManagedOStreamSupplier mos;
 
-    public IStreamSender(ManagedOStreamSupplier mos) {
+    public OStreamSender(ManagedOStreamSupplier mos) {
 
         this.mos = mos;
         flushOutputStream();
@@ -92,10 +92,10 @@ public abstract class IStreamSender<T> implements Sender<T> {
             }
         }); });
     }
-    @Override public <U> IStreamSender<U> adapted(Function1<T,U> adapter) {
-        return new IStreamSender<U>(mos) {
+    @Override public <U> OStreamSender<U> adapted(Function1<T,U> adapter) {
+        return new OStreamSender<U>(mos) {
             @Override protected byte[] serialize(U data) {
-                return IStreamSender.this.serialize(adapter.apply(data));
+                return OStreamSender.this.serialize(adapter.apply(data));
             }
         };
     }

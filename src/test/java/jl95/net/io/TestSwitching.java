@@ -34,7 +34,7 @@ public class TestSwitching {
     public BytesIStreamReceiver receiver1;
     public BytesIStreamReceiver receiver2;
     public BytesIStreamReceiver receiver3;
-    public BytesIStreamSender sender;
+    public BytesOStreamSender sender;
     public SwitchingRetriableIOStream switchingIos;
 
     private void assertReceivesPayload        (byte[] payload, BytesIStreamReceiver receiver) throws Exception {
@@ -92,7 +92,7 @@ public class TestSwitching {
         });
         sleep(1000);
         System.out.println("Sender create");
-        sender = BytesIStreamSender.of(switchingIos);
+        sender = BytesOStreamSender.of(switchingIos);
         System.out.println("Receiver 1 create");
         receiver1 = BytesIStreamReceiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Receiver 2 create");
@@ -131,7 +131,7 @@ public class TestSwitching {
             System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
         });
         sleep(1000);
-        sender = BytesIStreamSender.of(switchingIos);
+        sender = BytesOStreamSender.of(switchingIos);
         var payload1 = new byte[1000];
         receiver1 = BytesIStreamReceiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Connected to receiver 1");

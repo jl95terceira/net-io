@@ -1,7 +1,7 @@
 package jl95.net.io.demo;
 
 import jl95.lang.P;
-import jl95.net.io.BytesIStreamSender;
+import jl95.net.io.BytesOStreamSender;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -13,7 +13,7 @@ public class Send {
         var sock = new Socket();
         sock.connect(new InetSocketAddress("127.0.0.1", 4242));
         System.out.println("Connected");
-        var send = BytesIStreamSender.of(sock.getOutputStream());
+        var send = BytesOStreamSender.of(sock.getOutputStream());
         var scanner = new Scanner(System.in);
         var nrEmpty = new P<>(0);
         while (true) {
