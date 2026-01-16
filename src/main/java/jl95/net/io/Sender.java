@@ -4,7 +4,7 @@ import java.io.OutputStream;
 
 import jl95.lang.variadic.Function1;
 
-public interface Sender<T> {
+public interface Sender<T> extends Closeable {
 
     void send(T outgoing);
 
@@ -15,6 +15,9 @@ public interface Sender<T> {
             @Override public void send(T2 outgoing) {
                 var adaptedOutgoing = adapterFunction.apply(outgoing);
                 Sender.this.send(adaptedOutgoing);
+            }
+            @Override public void close() {
+                Sender.this.close();
             }
         };
     }

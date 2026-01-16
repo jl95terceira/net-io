@@ -19,7 +19,7 @@ import jl95.net.io.IOStreamSupplier;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
-public abstract class RetriableIOStream implements ManagedIOStreamSupplier, Closeable {
+public abstract class RetriableIOStream implements ManagedIOStreamSupplier {
 
     private final StrictMap<InetSocketAddress, CloseableIOStreamSupplier>iosMapByAddr        = strict(new ConcurrentHashMap<>());
     private final StrictMap<InetSocketAddress, Object>      iosReconnectSyncMap = strict(new ConcurrentHashMap<>());

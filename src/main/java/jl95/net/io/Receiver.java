@@ -7,7 +7,7 @@ import java.time.Duration;
 import jl95.lang.variadic.*;
 import jl95.util.*;
 
-public interface Receiver<T> {
+public interface Receiver<T> extends Closeable {
 
     record TimeoutInfo(Integer  timeoutsSoFar,
                        Duration timeoutAccum) {}
@@ -96,6 +96,9 @@ public interface Receiver<T> {
             }
             @Override public boolean      isReceiving    () {
                 return Receiver.this.isReceiving();
+            }
+            @Override public void         close          () {
+                Receiver.this.close();
             }
         };
     }

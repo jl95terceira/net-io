@@ -99,4 +99,7 @@ public abstract class OStreamSender<T> implements Sender<T> {
             }
         };
     }
+    @Override public void close() {
+        mos.close();
+    }
 }

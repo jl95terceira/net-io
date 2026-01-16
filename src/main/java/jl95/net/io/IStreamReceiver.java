@@ -178,4 +178,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
             }
         };
     }
+    @Override public void close() {
+        mis.close();
+    }
 }
