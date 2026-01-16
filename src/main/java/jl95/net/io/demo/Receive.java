@@ -15,12 +15,13 @@ public class Receive {
         var sock = server.accept();
         System.out.println("Accepted");
         server.close();
-        var recv = BytesIStreamReceiver.of(sock.getInputStream());
+        var receiver = BytesIStreamReceiver.of(sock.getInputStream());
         var toStop = new P<>(false);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> toStop.set(true)));
-        recv.recvWhile(data -> {
+        receiver.recvWhile(data -> {
             System.out.println("<<< " + new String(data, StandardCharsets.UTF_8));
             return !toStop.get();
         });
+        receiver.close();
     }
 }

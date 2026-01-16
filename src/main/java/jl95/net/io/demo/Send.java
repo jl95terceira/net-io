@@ -13,7 +13,7 @@ public class Send {
         var sock = new Socket();
         sock.connect(new InetSocketAddress("127.0.0.1", 4242));
         System.out.println("Connected");
-        var send = BytesOStreamSender.of(sock.getOutputStream());
+        var sender = BytesOStreamSender.of(sock.getOutputStream());
         var scanner = new Scanner(System.in);
         var nrEmpty = new P<>(0);
         while (true) {
@@ -25,7 +25,8 @@ public class Send {
                 continue;
             }
             nrEmpty.set(0);
-            send.send(message.getBytes(StandardCharsets.UTF_8));
+            sender.send(message.getBytes(StandardCharsets.UTF_8));
         }
+        sender.close();
     }
 }
