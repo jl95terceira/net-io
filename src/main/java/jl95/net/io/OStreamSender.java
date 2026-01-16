@@ -18,7 +18,7 @@ import jl95.net.io.managed.ManagedOStreamSupplier;
 
 public abstract class OStreamSender<T> implements Sender<T> {
 
-    public static class SendException          extends RuntimeException {
+    public static class SendException extends RuntimeException {
         public SendException(Exception ex) {super(ex);}
     }
 
@@ -48,7 +48,7 @@ public abstract class OStreamSender<T> implements Sender<T> {
 
     @Override public synchronized void send(T data) {
         var outgoing = serialize(data);
-        mos.withOutput(os -> { uncheck(() -> {
+        mos.withOutput(os -> {
             try {
                 if (outgoing.length > 0) {
                     byte[] sizeFrame;
@@ -90,7 +90,7 @@ public abstract class OStreamSender<T> implements Sender<T> {
             catch (Exception ex) {
                 throw new SendException(ex);
             }
-        }); });
+        });
     }
     @Override public <U> OStreamSender<U> adapted(Function1<T,U> adapter) {
         return new OStreamSender<U>(mos) {

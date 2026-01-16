@@ -18,10 +18,15 @@ public class Receive {
         var receiver = BytesIStreamReceiver.of(sock.getInputStream());
         var toStop = new P<>(false);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> toStop.set(true)));
-        receiver.recvWhile(data -> {
-            System.out.println("<<< " + new String(data, StandardCharsets.UTF_8));
-            return !toStop.get();
-        });
+        try {
+            receiver.recvWhile(data -> {
+                System.out.println("<<< " + new String(data, StandardCharsets.UTF_8));
+                return !toStop.get();
+            });
+        }
+        catch (Exception ex) {
+            System.out.println(ex);
+        }
         receiver.close();
     }
 }

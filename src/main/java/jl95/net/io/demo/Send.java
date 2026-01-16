@@ -25,7 +25,13 @@ public class Send {
                 continue;
             }
             nrEmpty.set(0);
-            sender.send(message.getBytes(StandardCharsets.UTF_8));
+            try {
+                sender.send(message.getBytes(StandardCharsets.UTF_8));
+            }
+            catch (Exception ex) {
+                System.out.println(ex);
+                break;
+            }
         }
         sender.close();
     }
