@@ -69,11 +69,11 @@ public class TestSwitching {
             if (receiver != null)
             {
                 receiver.ensureStopped();
-                receiver.getInputStream().close();
+                receiver.close();
             }
         }
-        if (switchingIos != null) {
-            switchingIos.close();
+        if (sender != null) {
+            sender.close();
         }
     }
     @org.junit.AfterClass

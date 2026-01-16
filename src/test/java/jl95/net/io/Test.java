@@ -23,7 +23,6 @@ public class Test {
 
     private Receiver<String> receiver;
     private Sender<String> sender;
-    private List<Runnable> cleanupRunnables = new ArrayList<>();
 
     @org.junit.Before
     public void setUp() throws Exception {
@@ -33,7 +32,6 @@ public class Test {
         new Thread(() -> {
             try {
                 var sock = serversock.accept();
-                cleanupRunnables.add(unchecked(sock::close)::accept);
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                     try {
                         sock.close();
@@ -49,7 +47,6 @@ public class Test {
             }
         }).start();
         var clientSocket = new java.net.Socket();
-        cleanupRunnables.add(unchecked(clientSocket::close)::accept);
         clientSocket.connect(addr);
         sender   = SenderAdaptersCollections.asStringSender(BytesOStreamSender.of(IOStreamSupplier.fromSocketLazy(clientSocket).getOutputStream()));
         receiver = receiverFuture.get();
@@ -59,7 +56,8 @@ public class Test {
         if (receiver.isReceiving()) {
             receiver.recvStop().get();
         }
-        cleanupRunnables.forEach(Runnable::run);
+        receiver.close();
+        sender.close();
     }
 
     public static void threaded(Runnable runnable) {

@@ -78,11 +78,9 @@ public class TestRetriable {
         if (receiver != null)
         {
             receiver.ensureStopped();
-            receiver.getInputStream().close();
+            receiver.close();
         }
-        if (retriableIos != null) {
-            retriableIos.close();
-        }
+        sender.close();
     }
     @org.junit.AfterClass
     public static void tearDownStatic() {
