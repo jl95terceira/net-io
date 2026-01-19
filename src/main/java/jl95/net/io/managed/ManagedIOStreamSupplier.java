@@ -26,10 +26,18 @@ public interface ManagedIOStreamSupplier extends ManagedIStreamSupplier, Managed
     static ManagedIOStreamSupplier of(IOStreamSupplier ios) {
         return new ManagedIOStreamSupplier() {
 
+            private boolean isClosedInput = false;
+            private boolean isClosedOutput = false;
             @Override
             public void close() {
-                uncheck(ios.getInputStream ()::close);
-                uncheck(ios.getOutputStream()::close);
+                if (!isClosedInput) {
+                    uncheck(ios.getInputStream ()::close);
+                    isClosedInput = true;
+                }
+                if (!isClosedOutput) {
+                    uncheck(ios.getOutputStream()::close);
+                    isClosedOutput = true;
+                }
             }
             @Override
             public <T> T withIo(Function2<T, InputStream, OutputStream> f) {

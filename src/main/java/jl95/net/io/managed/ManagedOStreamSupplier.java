@@ -25,9 +25,14 @@ public interface ManagedOStreamSupplier extends OStreamSupplier, Closeable {
 
     static ManagedOStreamSupplier of(OutputStream os) {
         return new ManagedOStreamSupplier() {
+
+            private boolean isClosed = false;
             @Override
             public void close() {
-                uncheck(os::close);
+                if (!isClosed) {
+                    uncheck(os::close);
+                    isClosed = true;
+                }
             }
             @Override
             public <T> T withOutput(Function1<T, OutputStream> f) {

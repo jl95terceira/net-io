@@ -60,7 +60,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
 
     private UVoidFuture recvStopUnchecked() {
         toStop.set(true); // to be checked in loop, after which the future above will be completed
-        return recvWaitStopped();
+        return waitStopped();
     }
 
     public InputStream getInputStream() {
@@ -153,17 +153,17 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         startFuture.set(new CompletableFuture<>());
         stopFuture.get().complete(null);
     }
-    @Override public UVoidFuture recvWaitStarted() {
+    @Override public UVoidFuture waitStarted() {
         return UVoidFuture.of(startFuture.get());
     }
-    @Override public UVoidFuture recvStop() {
+    @Override public UVoidFuture stop() {
 
         if (!isReceiving.get()) {
             throw new NotReceivingException();
         }
         return recvStopUnchecked();
     }
-    @Override public UVoidFuture recvWaitStopped() {
+    @Override public UVoidFuture waitStopped() {
         return UVoidFuture.of(stopFuture.get());
     }
     @Override public boolean isReceiving() {

@@ -35,12 +35,12 @@ public interface Receiver<T> extends Closeable {
         }
     }
 
-    void          recvWhile      (Function1<Boolean, T> incomingCbToContinue,
-                                  RecvOptions           options);
-    UVoidFuture   recvWaitStarted();
-    UVoidFuture   recvStop       ();
-    UVoidFuture   recvWaitStopped();
-    boolean       isReceiving    ();
+    void          recvWhile  (Function1<Boolean, T> incomingCbToContinue,
+                              RecvOptions           options);
+    UVoidFuture   waitStarted();
+    UVoidFuture   stop       ();
+    UVoidFuture   waitStopped();
+    boolean       isReceiving();
 
     default void recvWhile(Function1<Boolean, T> incomingCbToContinue) {
 
@@ -70,7 +70,7 @@ public interface Receiver<T> extends Closeable {
     default void ensureStopped() {
         try {
             if (!isReceiving()) return;
-            recvStop().get();
+            stop().get();
         }
         catch (BytesIStreamReceiver.NotReceivingException ex) {
             return;
@@ -79,27 +79,52 @@ public interface Receiver<T> extends Closeable {
     default <T2> Receiver<T2> adapted(Function1<T2, T> adapterFunction) {
         return new Receiver<>() {
 
-            @Override public void         recvWhile      (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
+            @Override public void         recvWhile  (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
                 Receiver.this.recvWhile(incoming -> {
                     var adaptedIncoming = adapterFunction.apply(incoming);
                     return incomingCbToContinue.apply(adaptedIncoming);
                 }, options);
             }
-            @Override public UVoidFuture  recvWaitStarted() {
-                return Receiver.this.recvWaitStarted();
+            @Override public UVoidFuture  waitStarted() {
+                return Receiver.this.waitStarted();
             }
-            @Override public UVoidFuture  recvStop       () {
-                return Receiver.this.recvStop();
+            @Override public UVoidFuture  stop       () {
+                return Receiver.this.stop();
             }
-            @Override public UVoidFuture  recvWaitStopped() {
-                return Receiver.this.recvWaitStopped();
+            @Override public UVoidFuture  waitStopped() {
+                return Receiver.this.waitStopped();
             }
-            @Override public boolean      isReceiving    () {
+            @Override public boolean      isReceiving() {
                 return Receiver.this.isReceiving();
             }
-            @Override public void         close          () {
+            @Override public void         close      () {
                 Receiver.this.close();
             }
         };
+    }
+
+    /**
+     * @deprecated Please use {@link #waitStarted()}
+     * @return
+     */
+    @Deprecated
+    default UVoidFuture   recvWaitStarted() {
+        return waitStarted();
+    }
+    /**
+     * @deprecated Please use {@link #stop()}
+     * @return
+     */
+    @Deprecated
+    default UVoidFuture   recvStop       () {
+        return stop();
+    }
+    /**
+     * @deprecated Please use {@link #waitStopped()}
+     * @return
+     */
+    @Deprecated
+    default UVoidFuture   recvWaitStopped() {
+        return waitStopped();
     }
 }

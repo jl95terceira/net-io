@@ -56,7 +56,7 @@ public class TestRetriable {
     private void expectPayload() {
         payloadBackPromise = new CompletableFuture<>();
         threaded(() -> receiver.recv(payloadBackPromise::complete));
-        receiver.recvWaitStarted().get();
+        receiver.waitStarted().get();
     }
     private void restartReceiver() {
         restartsNr += 1;

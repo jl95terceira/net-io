@@ -26,9 +26,14 @@ public interface ManagedIStreamSupplier extends IStreamSupplier, Closeable {
 
     static ManagedIStreamSupplier of(InputStream is) {
         return new ManagedIStreamSupplier() {
+
+            private boolean isClosed = false;
             @Override
-            public void close() {
-                uncheck(is::close);
+            public synchronized void close() {
+                if (!isClosed) {
+                    uncheck(is::close);
+                    isClosed = true;
+                }
             }
             @Override
             public <T> T withInput(Function1<T, InputStream> f) {

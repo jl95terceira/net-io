@@ -8,6 +8,7 @@ import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
 import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
 
@@ -54,7 +55,7 @@ public class Test {
     @org.junit.After
     public void tearDown() throws Exception {
         if (receiver.isReceiving()) {
-            receiver.recvStop().get();
+            receiver.stop().get();
         }
         receiver.close();
         sender.close();
@@ -68,9 +69,9 @@ public class Test {
 
         Assert.assertFalse(receiver.isReceiving());
         threaded(() -> receiver.recv(x -> {}));
-        receiver.recvWaitStarted().get();
+        receiver.waitStarted().get();
         Assert.assertTrue(receiver.isReceiving());
-        receiver.recvStop().get();
+        receiver.stop().get();
         Assert.assertFalse(receiver.isReceiving());
     }
     private void testSendMessages(List<String> messages) {
@@ -84,12 +85,12 @@ public class Test {
             Assert.assertEquals(messagesSendIterator.next(), message);
             return messagesSendIterator.hasNext();
         }));
-        receiver.recvWaitStarted().get();
+        receiver.waitStarted().get();
         Assert.assertTrue(receiver.isReceiving());
         for (var message: messages) {
              sender.send(message);
         }
-        receiver.recvWaitStopped().get();
+        receiver.waitStopped().get();
         System.out.println("Exchanged a total of "+charsReceivedNr[0]+" characters");
     }
     @org.junit.Test public void test() {
@@ -121,10 +122,61 @@ public class Test {
             "x".repeat(8*CONTENT_FRAME_SIZE)
         ));
     }
+    @org.junit.Test public void testCloseSender() throws Exception {
+
+        var msgFuture = new CompletableFuture<String>();
+        threaded(() -> receiver.recv(msgFuture::complete));
+        receiver.waitStarted().get();
+        sender.send("abc");
+        Assert.assertEquals("abc", msgFuture.get(3, TimeUnit.SECONDS));
+        sender.close();
+        var msgFuture2 = new CompletableFuture<String>();
+        var sendErrorHappened = false;
+        try {
+            sender.send("def");
+        }
+        catch (Exception ex) {
+            sendErrorHappened = true;
+        }
+        Assert.assertTrue(sendErrorHappened);
+        try {
+            msgFuture2.get(3, TimeUnit.SECONDS);
+            Assert.fail("Expected recv to not complete after sender closed");
+        }
+        catch (Exception ex) {
+            // expected
+        }
+    }
+    @org.junit.Test public void testCloseReceiver() throws Exception {
+
+        var msgFuture = new CompletableFuture<String>();
+        threaded(() -> receiver.recv(msgFuture::complete));
+        receiver.waitStarted().get();
+        sender.send("abc");
+        Assert.assertEquals("abc", msgFuture.get(3, TimeUnit.SECONDS));
+        receiver.ensureStopped();
+        receiver.close();
+        var msgFuture2 = new CompletableFuture<String>();
+        var sendErrorHappened = false;
+        try {
+            sender.send("def");
+        }
+        catch (Exception ex) {
+            sendErrorHappened = true;
+        }
+        Assert.assertTrue(sendErrorHappened);
+        try {
+            msgFuture2.get(3, TimeUnit.SECONDS);
+            Assert.fail("Expected recv to not complete after sender closed");
+        }
+        catch (Exception ex) {
+            // expected
+        }
+    }
     @org.junit.Test public void testException() {
         threaded(() -> receiver.recv(x -> { throw new RuntimeException(); }));
-        receiver.recvWaitStarted().get();
+        receiver.waitStarted().get();
         sender.send("abc");
-        receiver.recvStop().get();
+        receiver.stop().get();
     }
 }

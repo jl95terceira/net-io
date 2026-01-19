@@ -42,7 +42,7 @@ public class TestSwitching {
         var payloadBackPromise = new CompletableFuture<byte[]>();
         receiver.ensureStopped();
         threaded(() -> receiver.recv(payloadBackPromise::complete));
-        receiver.recvWaitStarted().get();
+        receiver.waitStarted().get();
         System.out.println("Sending");
         sender.send(payload);
         System.out.println("Waiting for payload back");
