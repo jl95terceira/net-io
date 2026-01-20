@@ -34,7 +34,7 @@ public class TestRetriable {
     public BytesIStreamReceiver receiver;
     public BytesOStreamSender sender;
     public CompletableFuture<byte[]> payloadBackPromise;
-    public RetriableIOStream retriableIos;
+    public RetriableIOStream<Integer> retriableIos;
     public Integer restartsNr = 0;
 
     private void assertReceivesPayload(byte[] payload) throws Exception {
@@ -92,7 +92,7 @@ public class TestRetriable {
         var receiverSocketFuture = getSocketByAcceptFuture(addr);
         retriableIos = SimpleRetriableClientIOStream.of(addr);
         sleep(1000);
-        sender   = BytesOStreamSender.of(retriableIos);
+        sender   = BytesOStreamSender.of(retriableIos.output());
         receiver = BytesIStreamReceiver.of(receiverSocketFuture.get().getInputStream());
         System.out.println("Connected to receiver");
         expectPayload();

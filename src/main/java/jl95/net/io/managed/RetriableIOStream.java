@@ -12,13 +12,15 @@ import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jl95.lang.variadic.*;
+import jl95.net.io.Closeable;
 import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.IOStreamSupplier;
+import jl95.net.io.Managed;
 import jl95.net.io.ManagedIOStream;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
-public abstract class RetriableIOStream<K> implements ManagedIOStream {
+public abstract class RetriableIOStream<K> implements ManagedIOStream, Closeable {
 
     private final StrictMap<K, Function0<CloseableIOStreamSupplier>>
                                 iosSupplierMap = strict(new ConcurrentHashMap<>());
@@ -182,13 +184,32 @@ public abstract class RetriableIOStream<K> implements ManagedIOStream {
     public final void           setReconnectTimeoutMs(Function0<Integer> t) { this.reconnectTimeoutMs = t; }
     public final void           setReconnectTimeoutMs(Integer            t) { setReconnectTimeoutMs(constant(t)); }
 
-    @Override public final <T> T withInput (Function1<T, InputStream>  f) {
-        return retried((ios) -> f.apply(ios.getInputStream ()));
+    @Override
+    public Managed<InputStream> input() {
+        return new Managed<>() {
+            @Override
+            public void close() {
+                /* not supported */
+            }
+            @Override
+            public <U> U doWith(Function1<U, InputStream> f) {
+                return retried((ios) -> f.apply(ios.getInputStream()));
+            }
+        };
     }
-    @Override public final <T> T withOutput(Function1<T, OutputStream> f) {
-        return retried((ios) -> f.apply(ios.getOutputStream()));
+    @Override
+    public Managed<OutputStream> output() {
+        return new Managed<>() {
+            @Override
+            public <U> U doWith(Function1<U, OutputStream> f) {
+                return retried((ios) -> f.apply(ios.getOutputStream()));
+            }
+            @Override
+            public void close() {
+                /* not supported */
+            }
+        };
     }
-    @Override public final <T> T withIo    (Function2<T, InputStream, OutputStream> f) { return retried((ios) -> f.apply(ios.getInputStream(), ios.getOutputStream())); }
 
     public static class NoMoreRetriesException extends RuntimeException {}
     public static class StopRetriesException   extends RuntimeException {}

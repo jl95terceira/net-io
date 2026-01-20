@@ -14,6 +14,7 @@ import java.math.BigInteger;
 
 import jl95.lang.I;
 import jl95.lang.variadic.Function1;
+import jl95.net.io.util.OutputStreams;
 
 public abstract class OStreamSender<T> implements Sender<T> {
 
@@ -21,33 +22,33 @@ public abstract class OStreamSender<T> implements Sender<T> {
         public SendException(Exception ex) {super(ex);}
     }
 
-    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStream> constructor, ManagedOStream os) {
+    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, Managed<OutputStream>> constructor, Managed<OutputStream> os) {
         return constructor.apply(os);
     }
-    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStream> constructor, OutputStream os) {
-        return constructor.apply(ManagedOStream.of(os));
+    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, Managed<OutputStream>> constructor, OutputStream os) {
+        return constructor.apply(OutputStreams.getSimpleManaged(os));
     }
 
-    private final ManagedOStream mos;
+    private final Managed<OutputStream> mos;
 
-    public OStreamSender(ManagedOStream mos) {
+    public OStreamSender(Managed<OutputStream> mos) {
 
         this.mos = mos;
         flushOutputStream();
     }
 
     public OutputStream getOutputStream() {
-        return mos.withOutput(os -> os);
+        return mos.doWith(os -> os);
     }
     public void flushOutputStream() {
-        mos.withOutput(os -> {});
+        mos.doWith(os -> {});
     }
 
     protected abstract byte[] serialize(T data);
 
     @Override public synchronized void send(T data) {
         var outgoing = serialize(data);
-        mos.withOutput(os -> {
+        mos.doWith(os -> {
             try {
                 if (outgoing.length > 0) {
                     byte[] sizeFrame;

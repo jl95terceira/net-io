@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import jl95.lang.I;
 import jl95.lang.P;
 import jl95.lang.variadic.Function1;
+import jl95.net.io.util.InputStreams;
 import jl95.util.UVoidFuture;
 
 public abstract class IStreamReceiver<T> implements Receiver<T> {
@@ -26,20 +27,20 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotReceivingException extends RuntimeException {}
 
-    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStream> constructor, ManagedIStream is) {
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, Managed<InputStream>> constructor, Managed<InputStream> is) {
         return constructor.apply(is);
     }
-    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStream> constructor, InputStream is) {
-        return constructor.apply(ManagedIStream.of(is));
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, Managed<InputStream>> constructor, InputStream is) {
+        return constructor.apply(InputStreams.getSimpleManaged(is));
     }
 
-    private final ManagedIStream mis;
+    private final Managed<InputStream> mis;
     private final AtomicBoolean isReceiving;
     private final AtomicBoolean toStop;
     private final AtomicReference<CompletableFuture<Void>> startFuture;
     private final AtomicReference<CompletableFuture<Void>> stopFuture;
 
-    private IStreamReceiver(ManagedIStream mis,
+    private IStreamReceiver(Managed<InputStream> mis,
                             AtomicBoolean isReceiving,
                             AtomicBoolean toStop,
                             AtomicReference<CompletableFuture<Void>> startFuture,
@@ -51,7 +52,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         this.stopFuture   = stopFuture;
     }
 
-    public IStreamReceiver(ManagedIStream mis) {
+    public IStreamReceiver(Managed<InputStream> mis) {
 
         this(mis, new AtomicBoolean(false), new AtomicBoolean(false), new AtomicReference<>(new CompletableFuture<>()), new AtomicReference<>(new CompletableFuture<>()));
         flushInputStream();
@@ -63,10 +64,10 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
     }
 
     public InputStream getInputStream() {
-        return mis.withInput(is -> is);
+        return mis.doWith(is -> is);
     }
     public void flushInputStream() {
-        mis.withInput(is -> {});
+        mis.doWith(is -> {});
     }
 
     protected abstract T deserialize(byte[] data);
@@ -86,7 +87,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
             var incoming = new P<byte[]>(null);
             try {
                 try {
-                    var continueLoop = mis.withInput(is -> { return uncheck(() -> {
+                    var continueLoop = mis.doWith(is -> { return uncheck(() -> {
                         if (is.available() == 0) {
                             timeouts.set(v -> v + 1);
                             options.onInputTimeout(new TimeoutInfo(timeouts.get(), Duration.between(timeoutT0.get(), Instant.now())));

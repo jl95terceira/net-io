@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
+import jl95.lang.variadic.Function1;
+import jl95.net.io.Managed;
 
 public class InputStreams {
 
@@ -50,6 +52,25 @@ public class InputStreams {
 
             @Override
             public long skip(long n) throws IOException { return getInputStream().skip(n); }
+        };
+    }
+    public static Managed<InputStream> getSimpleManaged(InputStream is) {
+        return new Managed<>() {
+
+            private boolean isClosed = false;
+
+            @Override
+            public synchronized void close() {
+                if (!isClosed) {
+                    uncheck(is::close);
+                    isClosed = true;
+                }
+            }
+
+            @Override
+            public <T> T doWith(Function1<T, InputStream> f) {
+                return f.apply(is);
+            }
         };
     }
 }

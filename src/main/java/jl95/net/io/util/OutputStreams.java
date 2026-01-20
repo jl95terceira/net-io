@@ -8,6 +8,8 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
+import jl95.lang.variadic.Function1;
+import jl95.net.io.Managed;
 
 public class OutputStreams {
 
@@ -39,6 +41,23 @@ public class OutputStreams {
             @Override
             public void write(int b) throws IOException {
                 getOutputStream().write(b);
+            }
+        };
+    }
+    public static Managed<OutputStream> getSimpleManaged(OutputStream os) {
+        return new Managed<>() {
+
+            private boolean isClosed = false;
+            @Override
+            public void close() {
+                if (!isClosed) {
+                    uncheck(os::close);
+                    isClosed = true;
+                }
+            }
+            @Override
+            public <T> T doWith(Function1<T, OutputStream> f) {
+                return f.apply(os);
             }
         };
     }

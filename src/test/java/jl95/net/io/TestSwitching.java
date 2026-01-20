@@ -92,7 +92,7 @@ public class TestSwitching {
         });
         sleep(1000);
         System.out.println("Sender create");
-        sender = BytesOStreamSender.of(switchingIos);
+        sender = BytesOStreamSender.of(switchingIos.output());
         System.out.println("Receiver 1 create");
         receiver1 = BytesIStreamReceiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Receiver 2 create");
@@ -131,7 +131,7 @@ public class TestSwitching {
             System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
         });
         sleep(1000);
-        sender = BytesOStreamSender.of(switchingIos);
+        sender = BytesOStreamSender.of(switchingIos.output());
         var payload1 = new byte[1000];
         receiver1 = BytesIStreamReceiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Connected to receiver 1");

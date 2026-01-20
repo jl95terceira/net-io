@@ -7,56 +7,28 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
+import jl95.net.io.util.InputStreams;
+import jl95.net.io.util.OutputStreams;
 
-public interface ManagedIOStream extends ManagedIStream, ManagedOStream {
+public interface ManagedIOStream {
 
-    <T> T withIo(Function2<T, InputStream, OutputStream> f);
+    Managed<InputStream> input();
+    Managed<OutputStream> output();
 
-    default void withIo(Method2<InputStream, OutputStream> f) {
-
-        this.<Void>withIo((in,out) -> {
-            f.accept(in,out);
-            return null;
-        });
-    }
-    default CloseableIOStreamSupplier getIo() { return withIo(function((i,o) -> CloseableIOStreamSupplier.of(i,o))); }
-    @Override
-    default void close() {
-        withIo((is, os) -> {
-            uncheck(is::close);
-            uncheck(os::close);
-            return null;
-        });
-    }
-
-    static ManagedIOStream of(IOStreamSupplier ios) {
+    public static ManagedIOStream of(IOStreamSupplier ios) {
+        var mis = InputStreams .getSimpleManaged(ios.getInputStream ());
+        var mos = OutputStreams.getSimpleManaged(ios.getOutputStream());
         return new ManagedIOStream() {
 
-            private boolean isClosedInput = false;
-            private boolean isClosedOutput = false;
             @Override
-            public void close() {
-                if (!isClosedInput) {
-                    uncheck(ios.getInputStream ()::close);
-                    isClosedInput = true;
-                }
-                if (!isClosedOutput) {
-                    uncheck(ios.getOutputStream()::close);
-                    isClosedOutput = true;
-                }
+            public Managed<InputStream> input() {
+                return mis;
             }
+
             @Override
-            public <T> T withIo(Function2<T, InputStream, OutputStream> f) {
-                return f.apply(ios.getInputStream(), ios.getOutputStream());
+            public Managed<OutputStream> output() {
+                return mos;
             }
-            @Override
-            public <T> T withInput(Function1<T, InputStream> f) {
-                return f.apply(ios.getInputStream());
-            }
-            @Override
-            public <T> T withOutput(Function1<T, OutputStream> f) {
-            return f.apply(ios.getOutputStream());
-        }
         };
     }
 }
