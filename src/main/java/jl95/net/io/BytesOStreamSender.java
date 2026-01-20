@@ -4,14 +4,14 @@ import java.io.OutputStream;
 
 public class BytesOStreamSender extends OStreamSender<byte[]> {
 
-    public static BytesOStreamSender of(ManagedOStreamSupplier os) {
+    public static BytesOStreamSender of(ManagedOStream os) {
         return new BytesOStreamSender(os);
     }
     public static BytesOStreamSender of(OutputStream os) {
-        return new BytesOStreamSender(ManagedOStreamSupplier.of(os));
+        return new BytesOStreamSender(ManagedOStream.of(os));
     }
 
-    private BytesOStreamSender(ManagedOStreamSupplier mos) {
+    private BytesOStreamSender(ManagedOStream mos) {
         super(mos);
     }
 

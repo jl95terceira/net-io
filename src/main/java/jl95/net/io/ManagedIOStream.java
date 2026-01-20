@@ -8,7 +8,7 @@ import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
 
-public interface ManagedIOStreamSupplier extends ManagedIStreamSupplier, ManagedOStreamSupplier {
+public interface ManagedIOStream extends ManagedIStream, ManagedOStream {
 
     <T> T withIo(Function2<T, InputStream, OutputStream> f);
 
@@ -20,9 +20,17 @@ public interface ManagedIOStreamSupplier extends ManagedIStreamSupplier, Managed
         });
     }
     default CloseableIOStreamSupplier getIo() { return withIo(function((i,o) -> CloseableIOStreamSupplier.of(i,o))); }
+    @Override
+    default void close() {
+        withIo((is, os) -> {
+            uncheck(is::close);
+            uncheck(os::close);
+            return null;
+        });
+    }
 
-    static ManagedIOStreamSupplier of(IOStreamSupplier ios) {
-        return new ManagedIOStreamSupplier() {
+    static ManagedIOStream of(IOStreamSupplier ios) {
+        return new ManagedIOStream() {
 
             private boolean isClosedInput = false;
             private boolean isClosedOutput = false;

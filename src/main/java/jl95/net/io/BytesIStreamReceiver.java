@@ -10,14 +10,14 @@ import static jl95.lang.SuperPowers.uncheck;
 
 public class BytesIStreamReceiver extends IStreamReceiver<byte[]> {
 
-    public static BytesIStreamReceiver of(ManagedIStreamSupplier is) {
+    public static BytesIStreamReceiver of(ManagedIStream is) {
         return new BytesIStreamReceiver(is);
     }
     public static BytesIStreamReceiver of(InputStream is) {
-        return new BytesIStreamReceiver(ManagedIStreamSupplier.of(is));
+        return new BytesIStreamReceiver(ManagedIStream.of(is));
     }
 
-    private BytesIStreamReceiver(ManagedIStreamSupplier mis) {
+    private BytesIStreamReceiver(ManagedIStream mis) {
         super(mis);
     }
 

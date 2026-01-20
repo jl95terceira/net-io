@@ -26,20 +26,20 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotReceivingException extends RuntimeException {}
 
-    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStreamSupplier> constructor, ManagedIStreamSupplier is) {
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStream> constructor, ManagedIStream is) {
         return constructor.apply(is);
     }
-    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStreamSupplier> constructor, InputStream is) {
-        return constructor.apply(ManagedIStreamSupplier.of(is));
+    public static <T> IStreamReceiver<T> of(Function1<IStreamReceiver<T>, ManagedIStream> constructor, InputStream is) {
+        return constructor.apply(ManagedIStream.of(is));
     }
 
-    private final ManagedIStreamSupplier mis;
+    private final ManagedIStream mis;
     private final AtomicBoolean isReceiving;
     private final AtomicBoolean toStop;
     private final AtomicReference<CompletableFuture<Void>> startFuture;
     private final AtomicReference<CompletableFuture<Void>> stopFuture;
 
-    private IStreamReceiver(ManagedIStreamSupplier mis,
+    private IStreamReceiver(ManagedIStream mis,
                             AtomicBoolean isReceiving,
                             AtomicBoolean toStop,
                             AtomicReference<CompletableFuture<Void>> startFuture,
@@ -51,7 +51,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         this.stopFuture   = stopFuture;
     }
 
-    public IStreamReceiver(ManagedIStreamSupplier mis) {
+    public IStreamReceiver(ManagedIStream mis) {
 
         this(mis, new AtomicBoolean(false), new AtomicBoolean(false), new AtomicReference<>(new CompletableFuture<>()), new AtomicReference<>(new CompletableFuture<>()));
         flushInputStream();

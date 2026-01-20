@@ -14,11 +14,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import jl95.lang.variadic.*;
 import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.IOStreamSupplier;
-import jl95.net.io.ManagedIOStreamSupplier;
+import jl95.net.io.ManagedIOStream;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
-public abstract class RetriableIOStream<K> implements ManagedIOStreamSupplier {
+public abstract class RetriableIOStream<K> implements ManagedIOStream {
 
     private final StrictMap<K, Function0<CloseableIOStreamSupplier>>
                                 iosSupplierMap = strict(new ConcurrentHashMap<>());

@@ -21,16 +21,16 @@ public abstract class OStreamSender<T> implements Sender<T> {
         public SendException(Exception ex) {super(ex);}
     }
 
-    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStreamSupplier> constructor, ManagedOStreamSupplier os) {
+    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStream> constructor, ManagedOStream os) {
         return constructor.apply(os);
     }
-    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStreamSupplier> constructor, OutputStream os) {
-        return constructor.apply(ManagedOStreamSupplier.of(os));
+    public static <T> OStreamSender<T> of(Function1<OStreamSender<T>, ManagedOStream> constructor, OutputStream os) {
+        return constructor.apply(ManagedOStream.of(os));
     }
 
-    private final ManagedOStreamSupplier mos;
+    private final ManagedOStream mos;
 
-    public OStreamSender(ManagedOStreamSupplier mos) {
+    public OStreamSender(ManagedOStream mos) {
 
         this.mos = mos;
         flushOutputStream();
