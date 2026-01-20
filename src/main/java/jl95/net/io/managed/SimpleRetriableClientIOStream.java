@@ -11,12 +11,8 @@ public class SimpleRetriableClientIOStream extends SimpleRetriableIOStream {
         return new SimpleRetriableClientIOStream(peerAddress);
     }
 
-    @Override protected CloseableIOStreamSupplier connect(InetSocketAddress addr) {
-        return Util.getIoAsClient(addr);
-    }
+    protected SimpleRetriableClientIOStream(InetSocketAddress peerAddress) {
 
-    private SimpleRetriableClientIOStream(InetSocketAddress peerAddress) {
-
-        super(peerAddress);
+        super(() -> Util.getIoAsClient(peerAddress));
     }
 }

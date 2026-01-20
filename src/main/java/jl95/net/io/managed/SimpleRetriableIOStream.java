@@ -1,35 +1,37 @@
 package jl95.net.io.managed;
 
+import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Method0;
-
-import java.net.InetSocketAddress;
+import jl95.net.io.CloseableIOStreamSupplier;
 
 import static jl95.lang.SuperPowers.*;
 
-public abstract class SimpleRetriableIOStream extends RetriableIOStream {
+public class SimpleRetriableIOStream extends RetriableIOStream<Integer> {
 
-    private final InetSocketAddress peerAddress;
-    private       Method0           reconnectHandler = null;
+    private Method0 reconnectHandler = null;
 
-    protected SimpleRetriableIOStream(InetSocketAddress peerAddress) {
+    protected SimpleRetriableIOStream(Function0<CloseableIOStreamSupplier> iosSupplier) {
 
-        this.peerAddress = peerAddress;
-        put(peerAddress);
+        put(0, iosSupplier);
     }
 
-    public final void reconnect() { reconnect(peerAddress); }
-
-    @Override protected final InetSocketAddress loadAddress    () {
-        return peerAddress;
+    public final void reconnect() {
+        reconnect(0);
     }
-    @Override protected final void              onIosException (InetSocketAddress addr, Exception ex) {
+
+    @Override protected final Integer loadAddress    () {
+        return 0;
+    }
+    @Override protected final void    onIosException (Integer addr, Exception ex) {
 
         reconnect(addr);
         ifNull(reconnectHandler, () -> {}).accept();
     }
-    @Override protected final void              retryExecute   (Method0 f) {
+    @Override protected final void    retryExecute   (Method0 f) {
         f.accept();
     }
 
-    public final void setReconnectHandler(Method0 f) {reconnectHandler = f;}
+    public final void setReconnectHandler(Method0 f) {
+        reconnectHandler = f;
+    }
 }

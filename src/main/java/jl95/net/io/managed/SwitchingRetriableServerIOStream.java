@@ -4,6 +4,7 @@ import static jl95.lang.SuperPowers.I;
 
 import java.net.InetSocketAddress;
 
+import jl95.lang.I;
 import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.Util;
 
@@ -16,12 +17,8 @@ public class SwitchingRetriableServerIOStream extends SwitchingRetriableIOStream
         return new SwitchingRetriableServerIOStream(I(peerAddresses));
     }
 
-    @Override protected CloseableIOStreamSupplier connect(InetSocketAddress addr) {
-        return Util.getIoAsServer(addr);
-    }
+    protected SwitchingRetriableServerIOStream(Iterable<InetSocketAddress> peerAddresses) {
 
-    private SwitchingRetriableServerIOStream(Iterable<InetSocketAddress> peerAddresses) {
-
-        super(peerAddresses);
+        super(I.of(peerAddresses).map(addr -> () -> Util.getIoAsServer(addr)));
     }
 }

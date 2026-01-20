@@ -14,22 +14,21 @@ import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method0;
 import jl95.lang.variadic.Method2;
+import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
-public abstract class SwitchingRetriableIOStream extends RetriableIOStream {
+public abstract class SwitchingRetriableIOStream extends RetriableIOStream<Integer> {
 
     public static class NoAddressesException      extends RuntimeException {}
     public static class NoMoreReswitchesException extends RuntimeException {}
 
-    private final StrictSet<InetSocketAddress> addrsSet = strict(Set());
-    private final List<InetSocketAddress>      addrsList = new ArrayList<>(1);
-    private final Iterator<InetSocketAddress>  peerAddressSwitcher;
+    private final Iterator<Integer>  peerAddressSwitcher;
     private final ScheduledExecutorService     pool;
-    private       InetSocketAddress            peerCurAddress;
+    private       Integer                      peerCurAddress;
     private       Function1<Boolean, Integer>  reswitchPredicate = null;
     private       Function0<Integer>           reswitchTimeoutMs = null;
-    private       Method2<InetSocketAddress, InetSocketAddress> reswitchHandler   = null;
+    private       Method2<Integer, Integer>    reswitchHandler   = null;
 
     private void reswitchIo(Integer reswitchesSoFar) {
         switchAddress();
@@ -39,22 +38,23 @@ public abstract class SwitchingRetriableIOStream extends RetriableIOStream {
         sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
     }
 
-    protected SwitchingRetriableIOStream(Iterable<InetSocketAddress> peerAddresses) {
+    protected SwitchingRetriableIOStream(Iterable<Function0<CloseableIOStreamSupplier>> connectionFunctions) {
 
-        I.of(peerAddresses).to(addrsSet);
-        I.of(peerAddresses).to(addrsList);
-        pool = new ScheduledThreadPoolExecutor(addrsList.size());
-        if (addrsList.isEmpty()) {
+        var connectionFunctionsList = I.of(connectionFunctions).toList();
+        pool = new ScheduledThreadPoolExecutor(connectionFunctionsList.size());
+        if (connectionFunctionsList.isEmpty()) {
             throw new NoAddressesException();
         }
-        peerAddressSwitcher = I.of(addrsList).cycle().iterator();
+        peerAddressSwitcher = I.range(connectionFunctionsList.size()).cycle().iterator();
         peerCurAddress = peerAddressSwitcher.next();
-        for (var addr: addrsList) {
-            put(addr);
+        for (var t: I.of(connectionFunctionsList).enumer()) {
+            var i    = t.a1;
+            var addr = t.a2;
+            put(i, addr);
         }
     }
 
-    @Override protected final InetSocketAddress loadAddress    () {
+    @Override protected final Integer loadAddress    () {
         var reswitchesSoFar = 0;
         do {
             if (isConnected(peerCurAddress)) {
@@ -66,11 +66,11 @@ public abstract class SwitchingRetriableIOStream extends RetriableIOStream {
         } while (ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar));
         throw new NoMoreReswitchesException();
     }
-    @Override protected final void              onIosException (InetSocketAddress addr, Exception ex) {
+    @Override protected final void    onIosException (Integer addr, Exception ex) {
         reconnect(addr);
         reswitchIo(0);
     }
-    @Override protected final void              retryExecute   (Method0 f) {
+    @Override protected final void    retryExecute   (Method0 f) {
         pool.execute(f::accept);
     }
 
@@ -88,7 +88,7 @@ public abstract class SwitchingRetriableIOStream extends RetriableIOStream {
     public final void setReswitchTimeoutMs(Function0<Integer>          f) {
         reswitchTimeoutMs = f;
     }
-    public final void setReswitchHandler  (Method2<InetSocketAddress, InetSocketAddress> f) {
+    public final void setReswitchHandler  (Method2<Integer, Integer>   f) {
         reswitchHandler = f;
     }
 }
