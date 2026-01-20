@@ -2,8 +2,6 @@ package jl95.net.io;
 
 import java.io.OutputStream;
 
-import jl95.net.io.managed.ManagedOStreamSupplier;
-
 public class BytesOStreamSender extends OStreamSender<byte[]> {
 
     public static BytesOStreamSender of(ManagedOStreamSupplier os) {

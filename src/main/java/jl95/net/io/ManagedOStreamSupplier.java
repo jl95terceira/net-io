@@ -1,4 +1,4 @@
-package jl95.net.io.managed;
+package jl95.net.io;
 
 import static jl95.lang.SuperPowers.uncheck;
 
@@ -6,7 +6,6 @@ import java.io.OutputStream;
 
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
-import jl95.net.io.Closeable;
 
 public interface ManagedOStreamSupplier extends Closeable {
 

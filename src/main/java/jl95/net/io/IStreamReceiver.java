@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import jl95.lang.I;
 import jl95.lang.P;
 import jl95.lang.variadic.Function1;
-import jl95.net.io.managed.ManagedIStreamSupplier;
 import jl95.util.UVoidFuture;
 
 public abstract class IStreamReceiver<T> implements Receiver<T> {

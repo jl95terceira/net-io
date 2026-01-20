@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import jl95.lang.variadic.*;
 import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.IOStreamSupplier;
+import jl95.net.io.ManagedIOStreamSupplier;
 import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 

@@ -14,7 +14,6 @@ import java.math.BigInteger;
 
 import jl95.lang.I;
 import jl95.lang.variadic.Function1;
-import jl95.net.io.managed.ManagedOStreamSupplier;
 
 public abstract class OStreamSender<T> implements Sender<T> {
 

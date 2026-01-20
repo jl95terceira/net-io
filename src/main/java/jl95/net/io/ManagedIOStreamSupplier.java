@@ -1,4 +1,4 @@
-package jl95.net.io.managed;
+package jl95.net.io;
 
 import static jl95.lang.SuperPowers.function;
 import static jl95.lang.SuperPowers.uncheck;
@@ -7,8 +7,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
-import jl95.net.io.CloseableIOStreamSupplier;
-import jl95.net.io.IOStreamSupplier;
 
 public interface ManagedIOStreamSupplier extends ManagedIStreamSupplier, ManagedOStreamSupplier {
 
