@@ -29,7 +29,7 @@ public abstract class SwitchingRetriableIOStream extends RetriableIOStream<Integ
     private void reswitchIo(Integer reswitchesSoFar) {
         switchIo();
         if (!ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
-            throw new NoMoreRetriesException();
+            throw new NoMoreReswitchesException();
         }
         sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
     }
