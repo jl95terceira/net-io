@@ -27,7 +27,7 @@ public abstract class SwitchingRetriableIOStream extends RetriableIOStream<Integ
     private       Method2<Integer, Integer>    reswitchHandler   = null;
 
     private void reswitchIo(Integer reswitchesSoFar) {
-        switchAddress();
+        switchIo();
         if (!ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
             throw new NoMoreRetriesException();
         }

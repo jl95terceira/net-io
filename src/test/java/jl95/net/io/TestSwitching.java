@@ -104,20 +104,20 @@ public class TestSwitching {
         assertReceivesPayload(new byte[]{0,16,0,48,0,80,0,112,0,(byte)144,0},
             receiver1);
         // test switch to 2nd receiver
-        switchingIos.switchAddress();
+        switchingIos.switchIo();
         assertReceivesPayload(new byte[]{0,16,32,48,64,80,96,112,(byte)128,(byte)144,(byte)160},
             receiver2);
         // test switch to 3rd receiver
-        switchingIos.switchAddress();
+        switchingIos.switchIo();
         assertReceivesPayload(new byte[]{(byte)255,16,112,96,64,80,96,112,(byte)128,(byte)144,(byte)160},
             receiver3);
         // test switch back to 1st receiver
-        switchingIos.switchAddress();
+        switchingIos.switchIo();
         assertReceivesPayload(new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32},
             receiver1);
         // test switch back to 3rd receiver
-        switchingIos.switchAddress(); // 1 -> 2
-        switchingIos.switchAddress(); // 2 -> 3
+        switchingIos.switchIo(); // 1 -> 2
+        switchingIos.switchIo(); // 2 -> 3
         assertReceivesPayload(new byte[200],
             receiver3);
     }
