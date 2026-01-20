@@ -7,9 +7,8 @@ import java.io.OutputStream;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
 import jl95.net.io.Closeable;
-import jl95.net.io.OStreamSupplier;
 
-public interface ManagedOStreamSupplier extends OStreamSupplier, Closeable {
+public interface ManagedOStreamSupplier extends Closeable {
 
     <T> T withOutput(Function1<T, OutputStream> f);
 
@@ -20,8 +19,7 @@ public interface ManagedOStreamSupplier extends OStreamSupplier, Closeable {
             return null;
         });
     }
-
-    @Override default OutputStream getOutputStream() { return withOutput(os -> os); }
+    default OutputStream getOutputStream() { return withOutput(os -> os); }
 
     static ManagedOStreamSupplier of(OutputStream os) {
         return new ManagedOStreamSupplier() {

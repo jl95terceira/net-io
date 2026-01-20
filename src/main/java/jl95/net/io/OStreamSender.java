@@ -38,7 +38,7 @@ public abstract class OStreamSender<T> implements Sender<T> {
     }
 
     public OutputStream getOutputStream() {
-        return mos.getOutputStream();
+        return mos.withOutput(os -> os);
     }
     public void flushOutputStream() {
         mos.withOutput(os -> {});

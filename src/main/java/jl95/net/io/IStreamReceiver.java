@@ -64,7 +64,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
     }
 
     public InputStream getInputStream() {
-        return mis.getInputStream();
+        return mis.withInput(is -> is);
     }
     public void flushInputStream() {
         mis.withInput(is -> {});

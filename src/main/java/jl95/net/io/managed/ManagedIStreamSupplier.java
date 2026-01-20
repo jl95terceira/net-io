@@ -7,9 +7,8 @@ import java.io.InputStream;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
 import jl95.net.io.Closeable;
-import jl95.net.io.IStreamSupplier;
 
-public interface ManagedIStreamSupplier extends IStreamSupplier, Closeable {
+public interface ManagedIStreamSupplier extends Closeable {
 
     <T> T withInput (Function1<T, InputStream>  f);
 
@@ -19,8 +18,7 @@ public interface ManagedIStreamSupplier extends IStreamSupplier, Closeable {
             return null;
         });
     }
-
-    @Override default InputStream getInputStream() {
+    default InputStream getInputStream() {
         return withInput(is -> is);
     }
 

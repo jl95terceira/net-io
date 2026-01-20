@@ -1,13 +1,25 @@
 package jl95.net.io.util;
 
+import static jl95.lang.SuperPowers.uncheck;
+import static jl95.lang.SuperPowers.unchecked;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
 
 public class InputStreams {
 
-    public static InputStream getLazy(Function0<InputStream> inSupplier) {
+    public static InputStream fromSocket    (Socket socket) {
+
+        return uncheck(socket::getInputStream);
+    }
+    public static InputStream fromSocketLazy(Socket socket) {
+
+        return InputStreams.getLazy(unchecked(socket::getInputStream));
+    }
+    public static InputStream getLazy       (Function0<InputStream> inSupplier) {
         return new InputStream() {
 
             private InputStream getInputStream() { return inSupplier.apply(); }
