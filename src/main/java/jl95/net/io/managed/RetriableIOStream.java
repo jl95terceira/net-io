@@ -20,39 +20,41 @@ import jl95.util.*;
 public abstract class RetriableIOStream<K> implements ManagedIOStreamSupplier {
 
     private final StrictMap<K, Function0<CloseableIOStreamSupplier>>
-                                                            iosSupplierMapByAddr= strict(new ConcurrentHashMap<>());
-    private final StrictMap<K, CloseableIOStreamSupplier>   iosMapByAddr        = strict(new ConcurrentHashMap<>());
-    private final StrictMap<K, Object>                      iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
-    private final StrictSet<K>                              addrsReconnecting   = strict(new HashSet<>());
-    private       Boolean                                   toStopRetries       = false;
-    private       Integer                                   retriesSoFar        = 0;
+                                iosSupplierMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<K, CloseableIOStreamSupplier>
+                                iosMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<K, Object>
+                                iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
+    private final StrictSet<K>  reconnectingSet = strict(new HashSet<>());
+    private       Boolean       toStopRetries       = false;
+    private       Integer       retriesSoFar        = 0;
     // settings
-    private       Function0<Integer>                        retryTimeoutMs;
-    private       Function1<Boolean, Integer>               retryPredicate;
-    private       Function0<Integer>                        reconnectTimeoutMs;
-    private       Method2<K, CloseableIOStreamSupplier>     onConnection;
+    private       Function0<Integer>                    retryTimeoutMs;
+    private       Function1<Boolean, Integer>           retryPredicate;
+    private       Function0<Integer>                    reconnectTimeoutMs;
+    private       Method2<K, CloseableIOStreamSupplier> onConnection;
 
     private <T> T   retried    (Function1<T, IOStreamSupplier> f) {
         while (!toStopRetries) {
-            var addr = loadAddress();
+            var key = nextIOKey();
             CloseableIOStreamSupplier ios = null;
             var gotIosError  = false;
             var deferOnError = method(() -> {});
             try {
-                if (iosMapByAddr.containsKey(addr)) {
-                    deferOnError = addrRemover(addr);
-                    ios = iosMapByAddr.get(addr);
+                if (iosMap.containsKey(key)) {
+                    deferOnError = ioKeyRemover(key);
+                    ios = iosMap.get(key);
                 }
                 else {
-                    ios = iosSupplierMapByAddr.get(addr).apply();
-                    deferOnError = addrRemover(addr);
+                    ios = iosSupplierMap.get(key).apply();
+                    deferOnError = ioKeyRemover(key);
                 }
                 return f.apply(ios);
             }
             catch (Exception ex) {
                 gotIosError = true;
                 deferOnError.accept();
-                onIosException(addr, ex);
+                onIosException(key, ex);
                 if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
                     throw new NoMoreRetriesException();
                 }
@@ -64,9 +66,9 @@ public abstract class RetriableIOStream<K> implements ManagedIOStreamSupplier {
         }
         throw new StopRetriesException();
     }
-    private Method0 addrRemover(K addr) {
+    private Method0 ioKeyRemover(K key) {
         return () -> {
-            iosMapByAddr.remove(addr);
+            iosMap.remove(key);
         };
     }
 
@@ -75,40 +77,40 @@ public abstract class RetriableIOStream<K> implements ManagedIOStreamSupplier {
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopRetries));
     }
 
-    protected abstract K    loadAddress();
-    protected abstract void onIosException(K addr, Exception ex);
+    protected abstract K    nextIOKey();
+    protected abstract void onIosException(K key, Exception ex);
     protected          void retryExecute(Method0 f) {
         new Thread(f::accept).start();
     }
     protected          void onToStopRetries() {}
 
     synchronized
-    public final void           put               (K addr, Function0<CloseableIOStreamSupplier> iosSupplier) {
-        iosSupplierMapByAddr.put(addr, iosSupplier);
-        iosReconnectSyncMap.put(addr, new Object());
+    public final void           put               (K key, Function0<CloseableIOStreamSupplier> iosSupplier) {
+        iosSupplierMap.put(key, iosSupplier);
+        iosReconnectSyncMap.put(key, new Object());
         try {
-            var ios = iosSupplierMapByAddr.get(addr).apply();
-            ifNull(onConnection, (addr_, ios_) -> {}).accept(addr, ios);
-            iosMapByAddr.put(addr, ios);
+            var ios = iosSupplierMap.get(key).apply();
+            ifNull(onConnection, (key_, ios_) -> {}).accept(key, ios);
+            iosMap.put(key, ios);
         }
         catch (Exception ex) {
-            reconnect(addr);
+            reconnect(key);
         }
     }
     public final CloseableIOStreamSupplier
-                                get               (K addr) {
-        return iosMapByAddr.get(addr);
+                                get               (K key) {
+        return iosMap.get(key);
     }
     public final Iterable<CloseableIOStreamSupplier>
-                                getAll            () {return iosMapByAddr.values();}
+                                getAll            () {return iosMap.values();}
     @Override
     synchronized
     public final void           close             () {
         stopRetries();
-        for (var addr: iosMapByAddr.keySet()) {
-            var sync = getReconnectSync(addr);
+        for (var key: iosMap.keySet()) {
+            var sync = getReconnectSync(key);
             if (sync != null) {
-                synchronized (getReconnectSync(addr)) {/* wait stop */}
+                synchronized (getReconnectSync(key)) {/* wait stop */}
             }
         }
         for (var ios: getAll()) {
@@ -116,52 +118,52 @@ public abstract class RetriableIOStream<K> implements ManagedIOStreamSupplier {
         }
     }
     synchronized
-    public final void           forget            (K addr) {
-        iosReconnectSyncMap.remove(addr);
-        if (iosMapByAddr.containsKey(addr)) {
+    public final void           forget            (K key) {
+        iosReconnectSyncMap.remove(key);
+        if (iosMap.containsKey(key)) {
             try {
-                iosMapByAddr.get(addr).close();
+                iosMap.get(key).close();
             }
             catch (Exception ex) {/* who cares */}
-            iosMapByAddr.remove(addr);
+            iosMap.remove(key);
         }
     }
     synchronized
-    public final void           reconnect         (K addr) {
-        if (addrsReconnecting.contains(addr)) /* already reconnecting */ {
+    public final void           reconnect         (K key) {
+        if (reconnectingSet.contains(key)) /* already reconnecting */ {
             return;
         }
-        forget(addr);
-        iosReconnectSyncMap.put(addr, new Object());
-        addrsReconnecting.add(addr);
+        forget(key);
+        iosReconnectSyncMap.put(key, new Object());
+        reconnectingSet.add(key);
         retryExecute(() -> {
-            synchronized (getReconnectSync(addr)) {
+            synchronized (getReconnectSync(key)) {
                 while (!toStopRetries()) {
                     CloseableIOStreamSupplier ios;
                     try {
-                        ios = iosSupplierMapByAddr.get(addr).apply();
+                        ios = iosSupplierMap.get(key).apply();
                         try {
-                            ifNull(onConnection, (addr_, ios_) -> {}).accept(addr, ios);
+                            ifNull(onConnection, (key_, ios_) -> {}).accept(key, ios);
                         }
                         catch (Exception ex) {
                             try { ios.close(); }
                             catch (Exception ex_) {/* the show must go on */}
                         }
-                        iosMapByAddr.put(addr, ios);
+                        iosMap.put(key, ios);
                     } catch (Exception ex) {
                         sleep(ifNull(reconnectTimeoutMs, Defaults.reconnectTimeoutMs).apply());
                         continue;
                     }
-                    addrsReconnecting.remove(addr);
+                    reconnectingSet.remove(key);
                     break;
                 }
             }
         });
     }
     synchronized
-    public final Object         getReconnectSync  (K addr) {return iosReconnectSyncMap.get(addr);}
-    public final Boolean        isConnected       (K addr) {
-        return iosMapByAddr.containsKey(addr);
+    public final Object         getReconnectSync  (K key) {return iosReconnectSyncMap.get(key);}
+    public final Boolean        isConnected       (K key) {
+        return iosMap.containsKey(key);
     }
     public final void           setOnConnection   (Method2<K, CloseableIOStreamSupplier> m) {
         onConnection = m;

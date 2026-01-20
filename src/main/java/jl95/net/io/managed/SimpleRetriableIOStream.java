@@ -19,12 +19,12 @@ public class SimpleRetriableIOStream extends RetriableIOStream<Integer> {
         reconnect(0);
     }
 
-    @Override protected final Integer loadAddress    () {
+    @Override protected final Integer nextIOKey() {
         return 0;
     }
-    @Override protected final void    onIosException (Integer addr, Exception ex) {
+    @Override protected final void    onIosException (Integer key, Exception ex) {
 
-        reconnect(addr);
+        reconnect(key);
         ifNull(reconnectHandler, () -> {}).accept();
     }
     @Override protected final void    retryExecute   (Method0 f) {
