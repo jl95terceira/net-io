@@ -7,27 +7,52 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
+import jl95.net.io.managed.SwitchingRetriableIOStream;
 import jl95.net.io.util.InputStreams;
 import jl95.net.io.util.OutputStreams;
 
-public interface ManagedIOStream {
+public interface ManagedIOStream extends Managed<CloseableIOStreamSupplier> {
 
-    Managed<InputStream> input();
-    Managed<OutputStream> output();
+    <U> U doWith(Function1<U, CloseableIOStreamSupplier> f);
 
-    public static ManagedIOStream of(IOStreamSupplier ios) {
-        var mis = InputStreams .getSimpleManaged(ios.getInputStream ());
-        var mos = OutputStreams.getSimpleManaged(ios.getOutputStream());
-        return new ManagedIOStream() {
-
+    default void close() {
+        get().close();
+    }
+    default Managed<InputStream> input() {
+        return new Managed<>() {
             @Override
-            public Managed<InputStream> input() {
-                return mis;
+            public void close() {
+                /* not supported */
             }
-
             @Override
-            public Managed<OutputStream> output() {
-                return mos;
+            public <U> U doWith(Function1<U, InputStream> f) {
+                return ManagedIOStream.this.doWith((CloseableIOStreamSupplier ios) -> f.apply(ios.getInputStream()));
+            }
+        };
+    }
+    default Managed<OutputStream> output() {
+        return new Managed<>() {
+            @Override
+            public <U> U doWith(Function1<U, OutputStream> f) {
+                return ManagedIOStream.this.doWith((CloseableIOStreamSupplier ios) -> f.apply(ios.getOutputStream()));
+            }
+            @Override
+            public void close() {
+                /* not supported */
+            }
+        };
+    }
+
+    static ManagedIOStream of(IOStreamSupplier ios) {
+        var cios = CloseableIOStreamSupplier.of(ios);
+        return new ManagedIOStream() {
+            @Override
+            public void close() {
+                cios.close();
+            }
+            @Override
+            public <U> U doWith(Function1<U, CloseableIOStreamSupplier> f) {
+                return f.apply(cios);
             }
         };
     }

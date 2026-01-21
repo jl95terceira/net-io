@@ -19,10 +19,9 @@ public class SimpleRetriableIOStream extends SimpleRetriable<CloseableIOStreamSu
     }
 
     @Override
-    protected void close(CloseableIOStreamSupplier ios) {
+    public void close(CloseableIOStreamSupplier ios) {
         ios.close();
     }
-
     @Override
     public Managed<InputStream> input() {
         return new Managed<>() {

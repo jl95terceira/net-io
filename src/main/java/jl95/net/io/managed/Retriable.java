@@ -167,7 +167,7 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
     }
     synchronized
     public final Object         getReconnectSync  (K key) {return iosReconnectSyncMap.get(key);}
-    public final Boolean        isConnected       (K key) {
+    public final Boolean        isAvailable       (K key) {
         return iosMap.containsKey(key);
     }
     public final void           setOnConnection   (Method2<K, O> m) {

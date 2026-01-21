@@ -5,7 +5,6 @@ import static jl95.lang.SuperPowers.I;
 import java.net.InetSocketAddress;
 
 import jl95.lang.I;
-import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.Util;
 
 public class SwitchingRetriableServerIOStream extends SwitchingRetriableIOStream {

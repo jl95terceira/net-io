@@ -16,8 +16,8 @@ import jl95.net.io.managed.util.Defaults;
 
 public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
 
-    public static class NoConnectionProvidersException extends RuntimeException {}
-    public static class NoMoreReswitchesException      extends RuntimeException {}
+    public static class NoSuppliersException      extends RuntimeException {}
+    public static class NoMoreReswitchesException extends RuntimeException {}
 
     private final Iterator<Integer>            indexSwitcher;
     private final ScheduledExecutorService     pool;
@@ -34,16 +34,16 @@ public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
         sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
     }
 
-    public SwitchingRetriable(Iterable<Function0<O>> connectionFunctions) {
+    public SwitchingRetriable(Iterable<Function0<O>> suppliers) {
 
-        var connectionFunctionsList = I.of(connectionFunctions).toList();
-        pool = new ScheduledThreadPoolExecutor(connectionFunctionsList.size());
-        if (connectionFunctionsList.isEmpty()) {
-            throw new NoConnectionProvidersException();
+        var suppliersList = I.of(suppliers).toList();
+        pool = new ScheduledThreadPoolExecutor(suppliersList.size());
+        if (suppliersList.isEmpty()) {
+            throw new NoSuppliersException();
         }
-        indexSwitcher = I.range(connectionFunctionsList.size()).cycle().iterator();
+        indexSwitcher = I.range(suppliersList.size()).cycle().iterator();
         curIndex = indexSwitcher.next();
-        for (var t: I.of(connectionFunctionsList).enumer()) {
+        for (var t: I.of(suppliersList).enumer()) {
             var i    = t.a1;
             var key = t.a2;
             put(i, key);
@@ -53,7 +53,7 @@ public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
     @Override protected final Integer next() {
         var reswitchesSoFar = 0;
         do {
-            if (isConnected(curIndex)) {
+            if (isAvailable(curIndex)) {
                 return curIndex;
             } else {
                 reswitch(reswitchesSoFar);
@@ -71,9 +71,9 @@ public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
     }
 
     public final void switchToNext() {
-        var peerPreviousAddress = curIndex;
+        var prevIndex = curIndex;
         curIndex = indexSwitcher.next();
-        ifNull(reswitchHandler, (addr_prev,addr_new) -> {}).accept(peerPreviousAddress, curIndex);
+        ifNull(reswitchHandler, (keyPrev, keyNew) -> {}).accept(prevIndex, curIndex);
     }
     public final void setReswitchPredicate(Function1<Boolean, Integer> f) {
         reswitchPredicate = f;

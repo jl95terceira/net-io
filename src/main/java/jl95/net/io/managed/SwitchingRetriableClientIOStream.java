@@ -14,7 +14,7 @@ public class SwitchingRetriableClientIOStream extends SwitchingRetriableIOStream
         return new SwitchingRetriableClientIOStream(peerAddresses);
     }
     public static SwitchingRetriableClientIOStream of(InetSocketAddress...        peerAddresses) {
-        return new SwitchingRetriableClientIOStream(I(peerAddresses));
+        return of(I(peerAddresses));
     }
 
     protected SwitchingRetriableClientIOStream(Iterable<InetSocketAddress> peerAddresses) {

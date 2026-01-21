@@ -22,31 +22,4 @@ import jl95.net.io.managed.util.Defaults;
 import jl95.util.*;
 
 public abstract class RetriableIOStream<K> extends CloseableRetriable<CloseableIOStreamSupplier, K> implements ManagedIOStream {
-
-    @Override
-    public Managed<InputStream> input() {
-        return new Managed<>() {
-            @Override
-            public void close() {
-                /* not supported */
-            }
-            @Override
-            public <U> U doWith(Function1<U, InputStream> f) {
-                return RetriableIOStream.this.doWith((CloseableIOStreamSupplier ios) -> f.apply(ios.getInputStream()));
-            }
-        };
-    }
-    @Override
-    public Managed<OutputStream> output() {
-        return new Managed<>() {
-            @Override
-            public <U> U doWith(Function1<U, OutputStream> f) {
-                return RetriableIOStream.this.doWith((CloseableIOStreamSupplier ios) -> f.apply(ios.getOutputStream()));
-            }
-            @Override
-            public void close() {
-                /* not supported */
-            }
-        };
-    }
 }
