@@ -1,37 +1,52 @@
 package jl95.net.io.managed;
 
 import jl95.lang.variadic.Function0;
+import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method0;
 import jl95.net.io.CloseableIOStreamSupplier;
+import jl95.net.io.Managed;
+import jl95.net.io.ManagedIOStream;
 
 import static jl95.lang.SuperPowers.*;
 
-public class SimpleRetriableIOStream extends RetriableIOStream<Integer> {
+import java.io.InputStream;
+import java.io.OutputStream;
 
-    private Method0 reconnectHandler = null;
+public class SimpleRetriableIOStream extends SimpleRetriable<CloseableIOStreamSupplier> implements ManagedIOStream {
 
-    protected SimpleRetriableIOStream(Function0<CloseableIOStreamSupplier> iosSupplier) {
-
-        put(0, iosSupplier);
+    public SimpleRetriableIOStream(Function0<CloseableIOStreamSupplier> iosSupplier) {
+        super(iosSupplier);
     }
 
-    public final void reconnect() {
-        reconnect(0);
+    @Override
+    protected void close(CloseableIOStreamSupplier ios) {
+        ios.close();
     }
 
-    @Override protected final Integer nextIOKey() {
-        return 0;
+    @Override
+    public Managed<InputStream> input() {
+        return new Managed<>() {
+            @Override
+            public void close() {
+                /* not supported */
+            }
+            @Override
+            public <U> U doWith(Function1<U, InputStream> f) {
+                return SimpleRetriableIOStream.this.doWith((CloseableIOStreamSupplier ios) -> f.apply(ios.getInputStream()));
+            }
+        };
     }
-    @Override protected final void    onIosException (Integer key, Exception ex) {
-
-        reconnect(key);
-        ifNull(reconnectHandler, () -> {}).accept();
-    }
-    @Override protected final void    retryExecute   (Method0 f) {
-        f.accept();
-    }
-
-    public final void setReconnectHandler(Method0 f) {
-        reconnectHandler = f;
+    @Override
+    public Managed<OutputStream> output() {
+        return new Managed<>() {
+            @Override
+            public <U> U doWith(Function1<U, OutputStream> f) {
+                return SimpleRetriableIOStream.this.doWith((CloseableIOStreamSupplier ios) -> f.apply(ios.getOutputStream()));
+            }
+            @Override
+            public void close() {
+                /* not supported */
+            }
+        };
     }
 }

@@ -1,6 +1,7 @@
 package jl95.net.io.managed;
 
-import static jl95.lang.SuperPowers.*;
+import static jl95.lang.SuperPowers.ifNull;
+import static jl95.lang.SuperPowers.sleep;
 
 import java.util.Iterator;
 import java.util.concurrent.ScheduledExecutorService;
@@ -11,38 +12,37 @@ import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method0;
 import jl95.lang.variadic.Method2;
-import jl95.net.io.CloseableIOStreamSupplier;
 import jl95.net.io.managed.util.Defaults;
 
-public class SwitchingRetriableIOStream extends RetriableIOStream<Integer> {
+public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
 
     public static class NoConnectionProvidersException extends RuntimeException {}
     public static class NoMoreReswitchesException      extends RuntimeException {}
 
-    private final Iterator<Integer>            peerIndexSwitcher;
+    private final Iterator<Integer>            indexSwitcher;
     private final ScheduledExecutorService     pool;
-    private       Integer                      peerCurIndex;
+    private       Integer                      curIndex;
     private       Function1<Boolean, Integer>  reswitchPredicate = null;
     private       Function0<Integer>           reswitchTimeoutMs = null;
     private       Method2<Integer, Integer>    reswitchHandler   = null;
 
-    private void reswitchIo(Integer reswitchesSoFar) {
-        switchIo();
+    private void reswitch(Integer reswitchesSoFar) {
+        switchToNext();
         if (!ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
             throw new NoMoreReswitchesException();
         }
         sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
     }
 
-    public SwitchingRetriableIOStream(Iterable<Function0<CloseableIOStreamSupplier>> connectionFunctions) {
+    public SwitchingRetriable(Iterable<Function0<O>> connectionFunctions) {
 
         var connectionFunctionsList = I.of(connectionFunctions).toList();
         pool = new ScheduledThreadPoolExecutor(connectionFunctionsList.size());
         if (connectionFunctionsList.isEmpty()) {
             throw new NoConnectionProvidersException();
         }
-        peerIndexSwitcher = I.range(connectionFunctionsList.size()).cycle().iterator();
-        peerCurIndex = peerIndexSwitcher.next();
+        indexSwitcher = I.range(connectionFunctionsList.size()).cycle().iterator();
+        curIndex = indexSwitcher.next();
         for (var t: I.of(connectionFunctionsList).enumer()) {
             var i    = t.a1;
             var key = t.a2;
@@ -53,27 +53,27 @@ public class SwitchingRetriableIOStream extends RetriableIOStream<Integer> {
     @Override protected final Integer next() {
         var reswitchesSoFar = 0;
         do {
-            if (isConnected(peerCurIndex)) {
-                return peerCurIndex;
+            if (isConnected(curIndex)) {
+                return curIndex;
             } else {
-                reswitchIo(reswitchesSoFar);
+                reswitch(reswitchesSoFar);
                 reswitchesSoFar += 1;
             }
         } while (ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar));
         throw new NoMoreReswitchesException();
     }
-    @Override protected final void onException(Integer key, Exception ex) {
+    @Override protected final void    onException(Integer key, Exception ex) {
         reset(key);
-        reswitchIo(0);
+        reswitch(0);
     }
-    @Override protected final void    retryExecute   (Method0 f) {
+    @Override protected final void    retryExecute(Method0 f) {
         pool.execute(f::accept);
     }
 
-    public final void switchIo() {
-        var peerPreviousAddress = peerCurIndex;
-        peerCurIndex = peerIndexSwitcher.next();
-        ifNull(reswitchHandler, (addr_prev,addr_new) -> {}).accept(peerPreviousAddress, peerCurIndex);
+    public final void switchToNext() {
+        var peerPreviousAddress = curIndex;
+        curIndex = indexSwitcher.next();
+        ifNull(reswitchHandler, (addr_prev,addr_new) -> {}).accept(peerPreviousAddress, curIndex);
     }
     public final void setReswitchPredicate(Function1<Boolean, Integer> f) {
         reswitchPredicate = f;
@@ -86,13 +86,5 @@ public class SwitchingRetriableIOStream extends RetriableIOStream<Integer> {
     }
     public final void setReswitchHandler  (Method2<Integer, Integer>   f) {
         reswitchHandler = f;
-    }
-
-    /**
-     * @deprecated Please use {@link #switchIo()}.
-     */
-    @Deprecated
-    public final void switchAddress() {
-        switchIo();
     }
 }

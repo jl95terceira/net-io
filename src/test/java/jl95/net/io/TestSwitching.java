@@ -87,8 +87,8 @@ public class TestSwitching {
         var receiverSocket2Future = getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIOStream.of(addr1, addr2, addr3);
-        switchingIos.setReswitchHandler((addr_prev,addr_new) -> {
-            System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
+        switchingIos.setReswitchHandler((addrPrev, addrNew) -> {
+            System.out.printf("Switching from %s to %s\n", addrPrev, addrNew);
         });
         sleep(1000);
         System.out.println("Sender create");
@@ -127,8 +127,8 @@ public class TestSwitching {
         var receiverSocket2Future = getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIOStream.of(addr1, addr2, addr3);
-        switchingIos.setReswitchHandler((addr_prev,addr_new) -> {
-            System.out.printf("Switching from %s to %s\n", addr_prev, addr_new);
+        switchingIos.setReswitchHandler((addrPrev, addrNew) -> {
+            System.out.printf("Switching from %s to %s\n", addrPrev, addrNew);
         });
         sleep(1000);
         sender = BytesOStreamSender.of(switchingIos.output());
