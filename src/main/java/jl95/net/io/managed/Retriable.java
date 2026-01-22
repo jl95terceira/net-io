@@ -8,6 +8,7 @@ import static jl95.lang.SuperPowers.strict;
 
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Function1;
@@ -22,19 +23,18 @@ import jl95.util.StrictSet;
 public abstract class Retriable<O, K> implements Managed<O>, Closeable {
 
     private final StrictMap<K, Function0<O>>
-                                iosSupplierMap = strict(new ConcurrentHashMap<>());
-    private final StrictMap<K, O>
-                                iosMap = strict(new ConcurrentHashMap<>());
-    private final StrictMap<K, Object>
-                                iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
-    private final StrictSet<K>  reconnectingSet = strict(new HashSet<>());
-    private       Boolean       toStopRetries       = false;
-    private       Integer       retriesSoFar        = 0;
+                                  supplierMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<K, O> objectMap   = strict(new ConcurrentHashMap<>());
+    private final StrictMap<K, ReentrantLock>
+                                  unsuppliedLockMap = strict(new ConcurrentHashMap<>());
+    private final StrictSet<K>    unsuppliedSet     = strict(new HashSet<>());
+    private       Boolean         toStopRetries     = false;
+    private       Integer         retriesSoFar      = 0;
     // settings
     private       Function0<Integer>          retryTimeoutMs;
     private       Function1<Boolean, Integer> retryPredicate;
-    private       Function0<Integer>          reconnectTimeoutMs;
-    private       Method2<K, O>               onConnection;
+    private       Function0<Integer>          supplyTimeoutMs;
+    private       Method2<K, O>               onSupplied;
 
     private <T> T   retried    (Function1<T, O> f) {
         while (!toStopRetries) {
@@ -43,12 +43,12 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
             var gotIosError  = false;
             var deferOnError = method(() -> {});
             try {
-                if (iosMap.containsKey(key)) {
+                if (objectMap.containsKey(key)) {
                     deferOnError = ioKeyRemover(key);
-                    ios = iosMap.get(key);
+                    ios = objectMap.get(key);
                 }
                 else {
-                    ios = iosSupplierMap.get(key).apply();
+                    ios = supplierMap.get(key).apply();
                     deferOnError = ioKeyRemover(key);
                 }
                 return f.apply(ios);
@@ -70,7 +70,7 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
     }
     private Method0 ioKeyRemover(K key) {
         return () -> {
-            iosMap.remove(key);
+            objectMap.remove(key);
         };
     }
 
@@ -89,12 +89,12 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
 
     synchronized
     public final void           put               (K key, Function0<O> iosSupplier) {
-        iosSupplierMap.put(key, iosSupplier);
-        iosReconnectSyncMap.put(key, new Object());
+        supplierMap.put(key, iosSupplier);
+        unsuppliedLockMap.put(key, new ReentrantLock());
         try {
-            var ios = iosSupplierMap.get(key).apply();
-            ifNull(onConnection, (key_, ios_) -> {}).accept(key, ios);
-            iosMap.put(key, ios);
+            var ios = supplierMap.get(key).apply();
+            ifNull(onSupplied, (key_, ios_) -> {}).accept(key, ios);
+            objectMap.put(key, ios);
         }
         catch (Exception ex) {
             reset(key);
@@ -102,18 +102,19 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
     }
     public final O
                                 get               (K key) {
-        return iosMap.get(key);
+        return objectMap.get(key);
     }
     public final Iterable<O>
-                                getAll            () {return iosMap.values();}
+                                getAll            () {return objectMap.values();}
     @Override
     synchronized
     public final void           close             () {
         stopRetries();
-        for (var key: iosMap.keySet()) {
-            var sync = getReconnectSync(key);
+        for (var key: objectMap.keySet()) {
+            var sync = getSupplySync(key);
             if (sync != null) {
-                synchronized (getReconnectSync(key)) {/* wait stop */}
+                sync.lock(); /* wait stop */
+                sync.unlock();
             }
         }
         for (var ios: getAll()) {
@@ -122,59 +123,60 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
     }
     synchronized
     public final void           forget            (K key) {
-        iosReconnectSyncMap.remove(key);
-        if (iosMap.containsKey(key)) {
+        unsuppliedLockMap.remove(key);
+        if (objectMap.containsKey(key)) {
             try {
-                close(iosMap.get(key));
+                close(objectMap.get(key));
             }
             catch (Exception ex) {/* who cares */}
-            iosMap.remove(key);
+            objectMap.remove(key);
         }
     }
     synchronized
     public final void           reset             (K key) {
-        if (reconnectingSet.contains(key)) /* already reconnecting */ {
+        if (unsuppliedSet.contains(key)) /* already supplying */ {
             return;
         }
         forget(key);
-        iosReconnectSyncMap.put(key, new Object());
-        reconnectingSet.add(key);
+        unsuppliedLockMap.put(key, new ReentrantLock());
+        unsuppliedSet.add(key);
         retryExecute(() -> {
-            synchronized (getReconnectSync(key)) {
-                while (!toStopRetries()) {
-                    O ios;
+            var sync = getSupplySync(key);
+            sync.lock();
+            while (!toStopRetries()) {
+                O ios;
+                try {
+                    ios = supplierMap.get(key).apply();
                     try {
-                        ios = iosSupplierMap.get(key).apply();
-                        try {
-                            ifNull(onConnection, (key_, ios_) -> {}).accept(key, ios);
-                        }
-                        catch (Exception ex) {
-                            try {
-                                close(ios);
-                            }
-                            catch (Exception ex_) {/* the show must go on */}
-                        }
-                        iosMap.put(key, ios);
-                    } catch (Exception ex) {
-                        sleep(ifNull(reconnectTimeoutMs, Defaults.reconnectTimeoutMs).apply());
-                        continue;
+                        ifNull(onSupplied, (key_, ios_) -> {}).accept(key, ios);
                     }
-                    reconnectingSet.remove(key);
-                    break;
+                    catch (Exception ex) {
+                        try {
+                            close(ios);
+                        }
+                        catch (Exception ex_) {/* the show must go on */}
+                    }
+                    objectMap.put(key, ios);
+                } catch (Exception ex) {
+                    sleep(ifNull(supplyTimeoutMs, Defaults.supplyTimeoutMs).apply());
+                    continue;
                 }
+                unsuppliedSet.remove(key);
+                break;
             }
+            sync.unlock();
         });
     }
     synchronized
-    public final Object         getReconnectSync  (K key) {return iosReconnectSyncMap.get(key);}
+    public final ReentrantLock  getSupplySync     (K key) {return unsuppliedLockMap.get(key);}
     public final Boolean        isAvailable       (K key) {
-        return iosMap.containsKey(key);
+        return objectMap.containsKey(key);
     }
-    public final void           setOnConnection   (Method2<K, O> m) {
-        onConnection = m;
+    public final void           setOnSupplied     (Method2<K, O> m) {
+        onSupplied = m;
     }
     public final void           setRetryTimeoutMs (Function0<Integer> t) { this.retryTimeoutMs = t; }
-    public final void           setRetryTimeoutMs (Integer            t) { setRetryTimeoutMs(constant(t)); }
+    public final void           setRetryTimeoutMs (Integer t) { setRetryTimeoutMs(constant(t)); }
     public final void           setRetryPredicate (Function1<Boolean, Integer> f) { this.retryPredicate = f; }
     public final void           setRetryLimit     (Integer max) { setRetryPredicate(n -> n < max); }
     public final Integer        getRetriesSoFar   () {return retriesSoFar;}
@@ -183,8 +185,8 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
         onToStopRetries();
     }
     public final Boolean        toStopRetries     () { return toStopRetries; }
-    public final void           setReconnectTimeoutMs(Function0<Integer> t) { this.reconnectTimeoutMs = t; }
-    public final void           setReconnectTimeoutMs(Integer            t) { setReconnectTimeoutMs(constant(t)); }
+    public final void           setSupplyTimeoutMs(Function0<Integer> t) { this.supplyTimeoutMs = t; }
+    public final void           setSupplyTimeoutMs(Integer t) { setSupplyTimeoutMs(constant(t)); }
 
     @Override
     public <U> U doWith(Function1<U, O> f) {

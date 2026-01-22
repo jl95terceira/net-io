@@ -7,7 +7,7 @@ import jl95.lang.variadic.Method0;
 
 public abstract class SimpleRetriable<O> extends Retriable<O, Integer> {
 
-    private Method0 reconnectHandler = null;
+    private Method0 resupplyHandler = null;
 
 
     protected SimpleRetriable(Function0<O> supplier) {
@@ -25,13 +25,13 @@ public abstract class SimpleRetriable<O> extends Retriable<O, Integer> {
     @Override protected final void    onException(Integer key, Exception ex) {
 
         reset(key);
-        ifNull(reconnectHandler, () -> {}).accept();
+        ifNull(resupplyHandler, () -> {}).accept();
     }
     @Override protected final void    retryExecute(Method0 f) {
         f.accept();
     }
 
-    public final void setReconnectHandler(Method0 f) {
-        reconnectHandler = f;
+    public final void setResupplyHandler(Method0 f) {
+        resupplyHandler = f;
     }
 }
