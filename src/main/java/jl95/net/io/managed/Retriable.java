@@ -39,22 +39,22 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
     private <T> T   retried    (Function1<T, O> f) {
         while (!toStopRetries) {
             var key = next();
-            O ios;
-            var gotIosError  = false;
+            O object;
+            var gotSupplyError  = false;
             var deferOnError = method(() -> {});
             try {
                 if (objectMap.containsKey(key)) {
                     deferOnError = ioKeyRemover(key);
-                    ios = objectMap.get(key);
+                    object = objectMap.get(key);
                 }
                 else {
-                    ios = supplierMap.get(key).apply();
+                    object = supplierMap.get(key).apply();
                     deferOnError = ioKeyRemover(key);
                 }
-                return f.apply(ios);
+                return f.apply(object);
             }
             catch (Exception ex) {
-                gotIosError = true;
+                gotSupplyError = true;
                 deferOnError.accept();
                 onException(key, ex);
                 if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
@@ -63,7 +63,7 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
                 sleep(ifNull(retryTimeoutMs, Defaults.retryTimeoutMs).apply());
                 retriesSoFar += 1;
             }
-            if (gotIosError) continue;
+            if (gotSupplyError) continue;
             retriesSoFar = 0;
         }
         throw new StopRetriesException();
@@ -81,20 +81,20 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
 
     protected abstract K    next();
     protected abstract void onException(K key, Exception ex);
-    protected abstract void close(O ios);
+    protected abstract void close(O object);
     protected          void retryExecute(Method0 f) {
         new Thread(f::accept).start();
     }
     protected          void onToStopRetries() {}
 
     synchronized
-    public final void           put               (K key, Function0<O> iosSupplier) {
-        supplierMap.put(key, iosSupplier);
+    public final void           put               (K key, Function0<O> supplier) {
+        supplierMap.put(key, supplier);
         unsuppliedLockMap.put(key, new ReentrantLock());
         try {
-            var ios = supplierMap.get(key).apply();
-            ifNull(onSupplied, (key_, ios_) -> {}).accept(key, ios);
-            objectMap.put(key, ios);
+            var object = supplierMap.get(key).apply();
+            ifNull(onSupplied, (key_, object_) -> {}).accept(key, object);
+            objectMap.put(key, object);
         }
         catch (Exception ex) {
             reset(key);
@@ -117,8 +117,8 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
                 sync.unlock();
             }
         }
-        for (var ios: getAll()) {
-            close(ios);
+        for (var object: getAll()) {
+            close(object);
         }
     }
     synchronized
@@ -144,19 +144,19 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
             var sync = getSupplySync(key);
             sync.lock();
             while (!toStopRetries()) {
-                O ios;
+                O object;
                 try {
-                    ios = supplierMap.get(key).apply();
+                    object = supplierMap.get(key).apply();
                     try {
-                        ifNull(onSupplied, (key_, ios_) -> {}).accept(key, ios);
+                        ifNull(onSupplied, (key_, object_) -> {}).accept(key, object);
                     }
                     catch (Exception ex) {
                         try {
-                            close(ios);
+                            close(object);
                         }
                         catch (Exception ex_) {/* the show must go on */}
                     }
-                    objectMap.put(key, ios);
+                    objectMap.put(key, object);
                 } catch (Exception ex) {
                     sleep(ifNull(supplyTimeoutMs, Defaults.supplyTimeoutMs).apply());
                     continue;
