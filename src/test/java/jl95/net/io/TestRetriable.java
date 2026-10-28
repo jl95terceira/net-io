@@ -1,8 +1,10 @@
 package jl95.net.io;
 
 import jl95.lang.I;
+import jl95.lang.P;
 import jl95.net.io.managed.SimpleRetriableClientIOStream;
 import jl95.net.io.managed.SimpleRetriableIOStream;
+import org.junit.Assert;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;
@@ -90,19 +92,25 @@ public class TestRetriable {
     @org.junit.Test
     public void test() throws Exception {
         var receiverSocketFuture = getSocketByAcceptFuture(addr);
-        retriableIos = SimpleRetriableClientIOStream.of(addr);
-        sleep(1000);
+        final P<Integer> afterConnectCallsNr = new P<>(0);
+        retriableIos = SimpleRetriableClientIOStream.of(addr, ios -> {
+            afterConnectCallsNr.set(i -> i + 1);
+        });
+        sleep(500);
         sender   = BytesOStreamSender.of(retriableIos.output());
         receiver = BytesIStreamReceiver.of(receiverSocketFuture.get().getInputStream());
         System.out.println("Connected to receiver");
         expectPayload();
         var payloadMaker = function(() -> String.join("", I.range(10).map(i -> UUID.randomUUID().toString())).getBytes());
         assertReceivesPayload(payloadMaker.apply());
+        Assert.assertEquals(1, afterConnectCallsNr.get().intValue());
         // restart many times
-        for (var r: I.range(5)) {
+        final int N_RECONNECTS = 5;
+        for (var r: I.range(N_RECONNECTS)) {
             restartReceiver();
-            sleep(1000);
+            sleep(500);
             assertReceivesPayload(payloadMaker.apply());
         }
+        Assert.assertEquals(1 /* first connection.*/ + N_RECONNECTS, afterConnectCallsNr.get().intValue());
     }
 }
