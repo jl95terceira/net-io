@@ -5,10 +5,13 @@ import static jl95.net.Util.getSocketByAcceptFuture;
 import static jl95.net.io.Test.threaded;
 
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import jl95.lang.*;
+import jl95.lang.variadic.Method2;
 import jl95.net.io.managed.SwitchingRetriableClientIOStream;
 import jl95.net.io.managed.SwitchingRetriableIOStream;
 import org.junit.Assert;
@@ -88,7 +91,7 @@ public class TestSwitching {
         final var receiverSocket2Future = getSocketByAcceptFuture(addr2);
         final var receiverSocket3Future = getSocketByAcceptFuture(addr3);
         final P<Integer> afterConnectCallsNr = new P<>(0);
-        switchingIos = SwitchingRetriableClientIOStream.of(I(addr1, addr2, addr3), ios -> {
+        switchingIos = SwitchingRetriableClientIOStream.of(I(addr1, addr2, addr3), (ios, addr) -> {
             afterConnectCallsNr.set(i -> i + 1);
         });
         Assert.assertEquals(3 /* all 3 connections are made right away */, afterConnectCallsNr.get().intValue());
@@ -137,43 +140,64 @@ public class TestSwitching {
         var receiverSocket2Future = getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = getSocketByAcceptFuture(addr3);
         final P<Integer> afterConnectCallsNr = new P<>(0);
-        switchingIos = SwitchingRetriableClientIOStream.of(I(addr1, addr2, addr3), ios -> {
+        final Map<InetSocketAddress, Integer> afterConnectCallsNrByAddress = new HashMap<>();
+        switchingIos = SwitchingRetriableClientIOStream.of(I(addr1, addr2, addr3), (ios, addr) -> {
             afterConnectCallsNr.set(i -> i + 1);
+            afterConnectCallsNrByAddress.put(addr, 1 + afterConnectCallsNrByAddress.computeIfAbsent(addr, k -> 0));
         });
+        final Method2<Integer, InetSocketAddress> assertCallsNrByAddress = (n, addr) -> Assert.assertEquals(n, afterConnectCallsNrByAddress.get(addr));
         switchingIos.setReswitchHandler((addrPrev, addrNew) -> {
             System.out.printf("Switching from %s to %s\n", addrPrev, addrNew);
         });
         sleep(1000);
         sender = BytesOStreamSender.of(switchingIos.output());
         Assert.assertEquals(3 /* all 3 connections are made right away */, afterConnectCallsNr.get().intValue());
+        assertCallsNrByAddress.accept(1, addr1);
+        assertCallsNrByAddress.accept(1, addr2);
+        assertCallsNrByAddress.accept(1, addr3);
         receiver1 = BytesIStreamReceiver.of(receiverSocket1Future.get().getInputStream());
         System.out.println("Send to receiver 1");
         final var payload1 = new byte[1000];
         assertReceivesPayloadAndClose(payload1, receiver1);
         Assert.assertEquals(3 /* no reconnects */, afterConnectCallsNr.get().intValue());
+        assertCallsNrByAddress.accept(1, addr1);
+        assertCallsNrByAddress.accept(1, addr2);
+        assertCallsNrByAddress.accept(1, addr3);
         // test fail-over to 2nd receiver
         receiver2 = BytesIStreamReceiver.of(receiverSocket2Future.get().getInputStream()); // start 2nd receiver - sender with switching IO expected to fail-over
         System.out.println("Switch (fail-over) to receiver 2");
         final var payload2 = new byte[]{0,16,32,48,64,80,96,112,(byte)128,(byte)144,(byte)160};
         assertReceivesPayloadAndClose(payload2, receiver2);
         Assert.assertEquals(3 /* no reconnects */, afterConnectCallsNr.get().intValue());
+        assertCallsNrByAddress.accept(1, addr1);
+        assertCallsNrByAddress.accept(1, addr2);
+        assertCallsNrByAddress.accept(1, addr3);
         // test fail-over to 3rd receiver
         receiver3 = BytesIStreamReceiver.of(receiverSocket3Future.get().getInputStream()); // start 3rd receiver - sender with switching IO expected to fail-over
         System.out.println("Switch (fail-over) to receiver 3");
         final var payload3 = new byte[]{(byte)255,16,112,96,64,80,96,112,(byte)128,(byte)144,(byte)160};
         assertReceivesPayloadAndClose(payload3, receiver3);
         Assert.assertEquals(3 /* no reconnects */, afterConnectCallsNr.get().intValue());
+        assertCallsNrByAddress.accept(1, addr1);
+        assertCallsNrByAddress.accept(1, addr2);
+        assertCallsNrByAddress.accept(1, addr3);
         // test fail-over to 1st receiver (re-opened)
         receiver1 = BytesIStreamReceiver.of(getSocketByAcceptFuture(addr1).get().getInputStream()); // re-launch 1st receiver
         System.out.println("Switch (fail-over) back to receiver 1");
         final var payload4 = new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32};
         assertReceivesPayloadAndClose(payload4, receiver1);
         Assert.assertEquals(4 /* reconnect receiver 1 */, afterConnectCallsNr.get().intValue());
+        assertCallsNrByAddress.accept(2, addr1);
+        assertCallsNrByAddress.accept(1, addr2);
+        assertCallsNrByAddress.accept(1, addr3);
         // test fail-over to 3rd receiver (re-opened)
         receiver3 = BytesIStreamReceiver.of(getSocketByAcceptFuture(addr3).get().getInputStream()); // re-launch 1st receiver
         System.out.println("Switch (fail-over) back to receiver 3");
         final var payload5 = new byte[]{(byte)255,0,(byte)255,16,64,80,16,112,(byte)255,(byte)255,(byte)32};
         assertReceivesPayloadAndClose(payload5, receiver3);
         Assert.assertEquals(5 /* reconnect receiver 3 */, afterConnectCallsNr.get().intValue());
+        assertCallsNrByAddress.accept(2, addr1);
+        assertCallsNrByAddress.accept(1, addr2);
+        assertCallsNrByAddress.accept(2, addr3);
     }
 }

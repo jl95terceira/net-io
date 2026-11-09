@@ -7,26 +7,27 @@ import java.net.InetSocketAddress;
 
 import jl95.lang.I;
 import jl95.lang.variadic.Method1;
+import jl95.lang.variadic.Method2;
 import jl95.net.io.Util;
 
 public class SwitchingRetriableClientIStream extends SwitchingRetriableIStream {
 
-    public static SwitchingRetriableClientIStream of(Iterable<InetSocketAddress> peerAddresses, Method1<InputStream> afterConnect) {
+    public static SwitchingRetriableClientIStream of(Iterable<InetSocketAddress> peerAddresses, Method2<InputStream, InetSocketAddress> afterConnect) {
         return new SwitchingRetriableClientIStream(peerAddresses, afterConnect);
     }
     public static SwitchingRetriableClientIStream of(Iterable<InetSocketAddress> peerAddresses) {
-        return of(peerAddresses, is -> {});
+        return of(peerAddresses, (is, addr) -> {});
     }
     public static SwitchingRetriableClientIStream of(InetSocketAddress...        peerAddresses) {
         return of(I(peerAddresses));
     }
 
-    protected SwitchingRetriableClientIStream(Iterable<InetSocketAddress> peerAddresses, Method1<InputStream> afterConnect) {
+    protected SwitchingRetriableClientIStream(Iterable<InetSocketAddress> peerAddresses, Method2<InputStream, InetSocketAddress> afterConnect) {
 
         super(I.of(peerAddresses).map(addr -> () -> {
             final InputStream is = Util.getIoAsClient(addr).getInputStream();
             try {
-                afterConnect.accept(is);
+                afterConnect.accept(is, addr);
             }
             catch (Exception ex) {
                 uncheck(is::close);
