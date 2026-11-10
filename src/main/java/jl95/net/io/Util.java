@@ -16,7 +16,7 @@ public class Util {
 
     private Util() {}
 
-    public static CloseableIOStreamSupplier getIoFromSocket(Socket            socket) {
+    public static CloseableIOStreamSupplier getIoFromSocket(Socket socket) {
         return new CloseableIOStreamSupplier() {
             @Override public InputStream getInputStream() { return uncheck(socket::getInputStream); }
             @Override public OutputStream getOutputStream() { return uncheck(socket::getOutputStream); }

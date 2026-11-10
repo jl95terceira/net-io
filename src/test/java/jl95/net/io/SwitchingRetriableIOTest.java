@@ -16,7 +16,7 @@ import jl95.net.io.managed.SwitchingRetriableClientIOStream;
 import jl95.net.io.managed.SwitchingRetriableIOStream;
 import org.junit.Assert;
 
-public class TestSwitching {
+public class SwitchingRetriableIOTest {
 
     public static InetSocketAddress addr1 = new InetSocketAddress("127.0.0.1", 42421);
     public static InetSocketAddress addr2 = new InetSocketAddress("127.0.0.1", 42422);

@@ -92,7 +92,7 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
         supplierMap.put(key, supplier);
         unsuppliedLockMap.put(key, new ReentrantLock());
         try {
-            var object = supplierMap.get(key).apply();
+            final O object = supplierMap.get(key).apply();
             ifNull(onSupplied, (key_, object_) -> {}).accept(key, object);
             objectMap.put(key, object);
         }
@@ -110,14 +110,14 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
     synchronized
     public final void           close             () {
         stopRetries();
-        for (var key: objectMap.keySet()) {
-            var sync = getSupplySync(key);
+        for (final K key: objectMap.keySet()) {
+            final ReentrantLock sync = getSupplySync(key);
             if (sync != null) {
                 sync.lock(); /* wait stop */
                 sync.unlock();
             }
         }
-        for (var object: getAll()) {
+        for (final O object: getAll()) {
             close(object);
         }
     }
@@ -141,10 +141,10 @@ public abstract class Retriable<O, K> implements Managed<O>, Closeable {
         unsuppliedLockMap.put(key, new ReentrantLock());
         unsuppliedSet.add(key);
         retryExecute(() -> {
-            var sync = getSupplySync(key);
+            final ReentrantLock sync = getSupplySync(key);
             sync.lock();
             while (!toStopRetries()) {
-                O object;
+                final O object;
                 try {
                     object = supplierMap.get(key).apply();
                     try {

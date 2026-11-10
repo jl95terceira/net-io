@@ -9,8 +9,7 @@ import jl95.util.*;
 
 public interface Receiver<T> extends Closeable {
 
-    record TimeoutInfo(Integer  timeoutsSoFar,
-                       Duration timeoutAccum) {}
+    record TimeoutInfo(Duration timeoutAccum) {}
     interface RecvOptions {
 
         void    onInputException   (Exception ex);

@@ -2,8 +2,9 @@ package jl95.net.io;
 
 import jl95.lang.I;
 import jl95.lang.P;
-import jl95.net.io.managed.SimpleRetriableClientIOStream;
-import jl95.net.io.managed.SimpleRetriableIOStream;
+import jl95.net.io.managed.SimpleRetriableClientOStream;
+import jl95.net.io.managed.SimpleRetriableOStream;
+
 import org.junit.Assert;
 
 import java.net.InetSocketAddress;
@@ -16,7 +17,7 @@ import static jl95.net.Util.getSocketByAccept;
 import static jl95.net.Util.getSocketByAcceptFuture;
 import static jl95.net.io.Test.threaded;
 
-public class TestRetriable {
+public class SimpleRetriableOStreamTest {
 
     public static InetSocketAddress addr = new InetSocketAddress("127.0.0.1", 42421);
 
@@ -36,7 +37,7 @@ public class TestRetriable {
     public BytesIStreamReceiver receiver;
     public BytesOStreamSender sender;
     public CompletableFuture<byte[]> payloadBackPromise;
-    public SimpleRetriableIOStream retriableIos;
+    public SimpleRetriableOStream retriableIos;
     public Integer restartsNr = 0;
 
     private void assertReceivesPayload(byte[] payload) throws Exception {
@@ -93,13 +94,13 @@ public class TestRetriable {
     public void test() throws Exception {
         var receiverSocketFuture = getSocketByAcceptFuture(addr);
         final P<Integer> afterConnectCallsNr = new P<>(0);
-        retriableIos = SimpleRetriableClientIOStream.of(addr, ios -> {
+        retriableIos = SimpleRetriableClientOStream.of(addr, ios -> {
             afterConnectCallsNr.set(i -> i + 1);
         });
         sleep(500);
-        sender   = BytesOStreamSender.of(retriableIos.output());
+        sender   = BytesOStreamSender.of(retriableIos);
         receiver = BytesIStreamReceiver.of(receiverSocketFuture.get().getInputStream());
-        System.out.println("Connected to receiver");
+        System.out.println("Connected");
         expectPayload();
         var payloadMaker = function(() -> String.join("", I.range(10).map(i -> UUID.randomUUID().toString())).getBytes());
         assertReceivesPayload(payloadMaker.apply());

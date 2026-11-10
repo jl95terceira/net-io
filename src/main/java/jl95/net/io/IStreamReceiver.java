@@ -81,20 +81,17 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         stopFuture.set(new CompletableFuture<>());
         isReceiving.set(true);
         startFuture.get().complete(null);
-        var timeouts     = new P<>(0);
-        var timeoutT0    = new P<>(Instant.now());
+        var timeoutT0 = new P<>(Instant.now());
         while (!toStop.get()) {
             var incoming = new P<byte[]>(null);
             try {
                 try {
                     var continueLoop = mis.doWith(is -> { return uncheck(() -> {
                         if (is.available() == 0) {
-                            timeouts.set(v -> v + 1);
-                            options.onInputTimeout(new TimeoutInfo(timeouts.get(), Duration.between(timeoutT0.get(), Instant.now())));
+                            options.onInputTimeout(new TimeoutInfo(Duration.between(timeoutT0.get(), Instant.now())));
                             sleep(options.inputRetryTimeoutMs());
                             return true;
                         }
-                        timeouts .set(0);
                         timeoutT0.set(Instant.now());
                         incoming.set(old -> null);
                         var contentPartsList = strict(new LinkedList<byte[]>());
@@ -127,7 +124,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
                         continue;
                     }
                 }
-                catch (Exception   ex) {
+                catch (Exception ex) {
                     options.onInputException(ex);
                     break;
                 }
