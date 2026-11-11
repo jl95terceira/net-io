@@ -1,0 +1,2 @@
+when calling close(), set a flag "isToBeClosed" to indicate that this call has been made
+when a SendException is thrown, if this flag is true, suppress the error message / error handling
