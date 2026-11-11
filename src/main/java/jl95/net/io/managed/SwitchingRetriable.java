@@ -12,7 +12,7 @@ import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method0;
 import jl95.lang.variadic.Method2;
-import jl95.net.io.managed.util.Defaults;
+import jl95.net.io.Constants;
 
 public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
 
@@ -31,7 +31,7 @@ public abstract class SwitchingRetriable<O> extends Retriable<O, Integer> {
         if (!ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
             throw new NoMoreReswitchesException();
         }
-        sleep(ifNull(reswitchTimeoutMs, Defaults.reswitchTimeoutMs).apply());
+        sleep(ifNull(reswitchTimeoutMs, Constants.RESWITCH_TIMEOUT_DEFAULT_MS).apply());
     }
 
     public SwitchingRetriable(Iterable<Function0<O>> suppliers) {

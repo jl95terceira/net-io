@@ -5,6 +5,7 @@ import static jl95.lang.SuperPowers.strict;
 import static jl95.lang.SuperPowers.uncheck;
 import static jl95.net.io.Constants.CONTENT_AHEAD_SIGNAL;
 import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
+import static jl95.net.io.Constants.NO_CONTENT_SIGNAL;
 import static jl95.net.io.Constants.SIZE_FRAME_SIZE;
 
 import java.io.InputStream;
@@ -62,7 +63,6 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         toStop.set(true); // to be checked in loop, after which the future above will be completed
         return waitStopped();
     }
-
     public InputStream getInputStream() {
         return mis.doWith(is -> is);
     }
@@ -81,42 +81,66 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
         stopFuture.set(new CompletableFuture<>());
         isReceiving.set(true);
         startFuture.get().complete(null);
-        var timeoutT0 = new P<>(Instant.now());
+        final var timeoutT0 = new P<>(Instant.now());
+        final var incoming = new P<byte[]>(null);
         while (!toStop.get()) {
-            var incoming = new P<byte[]>(null);
             try {
                 try {
                     var continueLoop = mis.doWith(is -> { return uncheck(() -> {
                         if (is.available() == 0) {
+
                             options.onInputTimeout(new TimeoutInfo(Duration.between(timeoutT0.get(), Instant.now())));
                             sleep(options.inputRetryTimeoutMs());
                             return true;
+
                         }
                         timeoutT0.set(Instant.now());
                         incoming.set(old -> null);
-                        var contentPartsList = strict(new LinkedList<byte[]>());
+                        final var contentPartsList = strict(new LinkedList<byte[]>());
                         while (!toStop.get()) {
-                            var signal = is.read();
-                            if (signal != CONTENT_AHEAD_SIGNAL) {
-                                if (!contentPartsList.isEmpty()) {
-                                    var N = I.of(contentPartsList).reduce(0, (sum,array) -> sum + array.length);
-                                    incoming.set(new byte[N]);
-                                    var i = 0;
-                                    for (var p: contentPartsList) {
-                                        System.arraycopy(p, 0, incoming.get(), i, p.length);
-                                        i += p.length;
-                                    }
+                            final int signal = is.read();
+                            switch (signal) {
+
+                                case -1 -> {
+
+                                    throw new RuntimeException("RECEIVER END OF STREAM");
+
                                 }
-                                break;
+
+                                case CONTENT_AHEAD_SIGNAL -> {
+
+                                    final byte[] sizeFrame = is.readNBytes(SIZE_FRAME_SIZE);
+                                    final int contentSize = new BigInteger(1, sizeFrame).intValue();
+                                    final byte[] contentFrame = is.readNBytes(CONTENT_FRAME_SIZE);
+                                    final byte[] contentPart = new byte[contentSize];
+                                    if (contentSize > 0) {
+                                        System.arraycopy(contentFrame, 0, contentPart, 0, contentSize);
+                                    }
+                                    contentPartsList.add(contentPart);
+
+                                }
+
+                                case NO_CONTENT_SIGNAL -> {
+
+                                    if (!contentPartsList.isEmpty()) {
+                                        final Integer N = I.of(contentPartsList).reduce(0, (sum,array) -> sum + array.length);
+                                        incoming.set(new byte[N]);
+                                        int i = 0;
+                                        for (final byte[] p: contentPartsList) {
+                                            System.arraycopy(p, 0, incoming.get(), i, p.length);
+                                            i += p.length;
+                                        }
+                                    }
+                                    return false;
+
+                                }
+
+                                default -> {
+
+                                    System.out.printf("RECEIVER PROTOCOL EXCEPTION: UNKNOWN SIGNAL: %s%n", signal);
+
+                                }
                             }
-                            var sizeFrame = is.readNBytes(SIZE_FRAME_SIZE);
-                            var contentSize = new BigInteger(1, sizeFrame).intValue();
-                            var contentFrame = is.readNBytes(CONTENT_FRAME_SIZE);
-                            var contentPart = new byte[contentSize];
-                            if (contentSize > 0) {
-                                System.arraycopy(contentFrame, 0, contentPart, 0, contentSize);
-                            }
-                            contentPartsList.add(contentPart);
                         }
                         return false;
                     }); });
@@ -131,6 +155,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
                 try {
                     if (incoming.get() != null) {
                         var toContinue = incomingCbToContinue.apply(deserialize(incoming.get()));
+                        incoming.set((byte[])null);
                         if (!toContinue) {
                             toStop.set(true);
                         }
@@ -141,8 +166,7 @@ public abstract class IStreamReceiver<T> implements Receiver<T> {
                 }
             }
             catch (Exception ex) {
-                System.out.println("Receiver: UNHANDLED FOLLOW-UP EXCEPTION - stop recv");
-                ex.printStackTrace();
+                System.out.printf("RECEIVER UNHANDLED FOLLOW-UP EXCEPTION: %s%n", ex);
                 break;
             }
         }

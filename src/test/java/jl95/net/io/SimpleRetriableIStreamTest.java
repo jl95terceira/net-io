@@ -21,7 +21,7 @@ import jl95.net.io.managed.SimpleRetriableServerIStream;
 
 public class SimpleRetriableIStreamTest {
 
-    public static InetSocketAddress addr = new InetSocketAddress("127.0.0.1", 42421);
+    public static InetSocketAddress addr = new InetSocketAddress("127.0.0.1", 42432);
 
     private static Byte[] box(byte[] bb) {
         var bb2 = new Byte[bb.length];
@@ -65,12 +65,14 @@ public class SimpleRetriableIStreamTest {
     }
     private void restartSender() {
         restartsNr += 1;
-        System.out.printf ("Restarting sender (nr of restart = %s)\n", restartsNr);
+        System.out.printf ("Sender restarting (nr of restart = %s)\n", restartsNr);
         System.out.println("  close (connection closed - receiver will have to reconnect)");
-        uncheck(sender.getOutputStream()::close);
+        uncheck(sender::close);
         System.out.println("  new");
-        sender = BytesOStreamSender.of(uncheck(() -> getSocketByConnect(addr).getOutputStream()));
-        System.out.println("Restarted sender OK");
+        threaded(() -> {
+            sender = BytesOStreamSender.of(uncheck(() -> getSocketByConnect(addr).getOutputStream()));
+            System.out.println("Sender restarted OK");
+        });
     }
 
     @org.junit.After
@@ -87,16 +89,16 @@ public class SimpleRetriableIStreamTest {
         sleep(1000);
     }
 
-    // TODO: fix this test when we have implemented proper retriable receiver, that re-initializes the input stream on dead connection
+    //TODO: fix this test when we have implemented proper retriable receiver, that detects a dead connection in order to re-initialize
 //    @org.junit.Test
     public void test() throws Exception {
         var senderSocketFuture = getSocketByConnectFuture(addr);
         final P<Integer> afterConnectCallsNr = new P<>(0);
-        new Thread(() -> {
+        threaded(() -> {
             retriableIosFuture.complete(SimpleRetriableServerIStream.of(addr, ios -> {
                 afterConnectCallsNr.set(i -> i + 1);
             }));
-        }).start();
+        });
         sleep(500);
         receiver = BytesIStreamReceiver.of(retriableIosFuture.get());
         sender   = BytesOStreamSender.of(senderSocketFuture.get().getOutputStream());

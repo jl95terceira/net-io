@@ -1,6 +1,7 @@
 package jl95.net.io;
 
 import static jl95.lang.SuperPowers.constant;
+import static jl95.net.io.Constants.RECEIVER_INPUT_TIMEOUT_DEFAULT_MS;
 
 import java.time.Duration;
 
@@ -22,7 +23,7 @@ public interface Receiver<T> extends Closeable {
             public Method1<Exception>   inputExcHandler     = (ex) -> System.out.printf("Exception on reading input: %s%n", ex);
             public Method1<Exception>   handlingExcHandler  = (ex) -> System.out.printf("Exception on handling input: %s%n", ex);
             public Method1<TimeoutInfo> inputTimeoutHandler = (info) ->  {};
-            public Function0<Integer>   inputRetryTimeoutMs = constant(100);
+            public Function0<Integer>   inputRetryTimeoutMs = constant(RECEIVER_INPUT_TIMEOUT_DEFAULT_MS);
 
             @Override public void    onHandlingException(Exception ex) { handlingExcHandler .accept(ex); }
             @Override public void    onInputException   (Exception ex) { inputExcHandler    .accept(ex); }

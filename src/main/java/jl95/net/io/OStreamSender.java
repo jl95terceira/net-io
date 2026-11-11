@@ -1,6 +1,5 @@
 package jl95.net.io;
 
-import static jl95.lang.SuperPowers.uncheck;
 import static jl95.net.io.Constants.CONTENT_AHEAD_SIGNAL;
 import static jl95.net.io.Constants.CONTENT_FRAME_SIZE;
 import static jl95.net.io.Constants.EMPTY_CONTENT_FRAME;
@@ -30,6 +29,7 @@ public abstract class OStreamSender<T> implements Sender<T> {
     }
 
     private final Managed<OutputStream> mos;
+    private final Object writeSync = new Object();
 
     public OStreamSender(Managed<OutputStream> mos) {
 
@@ -50,42 +50,50 @@ public abstract class OStreamSender<T> implements Sender<T> {
         var outgoing = serialize(data);
         mos.doWith(os -> {
             try {
-                if (outgoing.length > 0) {
-                    byte[] sizeFrame;
-                    byte[] contentFrame;
-                    var N = (outgoing.length - 1) / CONTENT_FRAME_SIZE + 1;
-                    for (var i: I.range(N-1)) {
-                        sizeFrame    = SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
+                synchronized (writeSync) {
+                    if (outgoing.length > 0) {
+                        byte[] sizeFrame;
+                        byte[] contentFrame;
+                        var N = (outgoing.length - 1) / CONTENT_FRAME_SIZE + 1;
+                        for (var i: I.range(N-1)) {
+                            sizeFrame    = SIZE_FRAME_FOR_FULL_CONTENT_FRAME;
+                            contentFrame = new byte[CONTENT_FRAME_SIZE];
+                            System.arraycopy(outgoing, i* CONTENT_FRAME_SIZE, contentFrame, 0, CONTENT_FRAME_SIZE);
+
+                            os.write(CONTENT_AHEAD_SIGNAL);
+                            os.write(sizeFrame);
+                            os.write(contentFrame);
+
+                        }
+                        sizeFrame    = new byte[SIZE_FRAME_SIZE];
                         contentFrame = new byte[CONTENT_FRAME_SIZE];
-                        System.arraycopy(outgoing, i* CONTENT_FRAME_SIZE, contentFrame, 0, CONTENT_FRAME_SIZE);
+                        var lastFrameContentSize = outgoing.length - (N-1)* CONTENT_FRAME_SIZE;
+                        var lastFrameContentSizeAsBytes = BigInteger.valueOf(lastFrameContentSize).toByteArray();
+                        System.arraycopy(lastFrameContentSizeAsBytes,
+                                         0,
+                                         sizeFrame,
+                                         SIZE_FRAME_SIZE - lastFrameContentSizeAsBytes.length,
+                                         lastFrameContentSizeAsBytes.length);
+                        System.arraycopy(outgoing,
+                                         (N-1)*CONTENT_FRAME_SIZE,
+                                         contentFrame,
+                                         0,
+                                         lastFrameContentSize);
+
                         os.write(CONTENT_AHEAD_SIGNAL);
                         os.write(sizeFrame);
                         os.write(contentFrame);
+
                     }
-                    sizeFrame    = new byte[SIZE_FRAME_SIZE];
-                    contentFrame = new byte[CONTENT_FRAME_SIZE];
-                    var lastFrameContentSize = outgoing.length - (N-1)* CONTENT_FRAME_SIZE;
-                    var lastFrameContentSizeAsBytes = BigInteger.valueOf(lastFrameContentSize).toByteArray();
-                    System.arraycopy(lastFrameContentSizeAsBytes,
-                                     0,
-                                     sizeFrame,
-                                     SIZE_FRAME_SIZE - lastFrameContentSizeAsBytes.length,
-                                     lastFrameContentSizeAsBytes.length);
-                    System.arraycopy(outgoing,
-                                     (N-1)*CONTENT_FRAME_SIZE,
-                                     contentFrame,
-                                     0,
-                                     lastFrameContentSize);
-                    os.write(CONTENT_AHEAD_SIGNAL);
-                    os.write(sizeFrame);
-                    os.write(contentFrame);
+                    else {
+
+                        os.write(CONTENT_AHEAD_SIGNAL);
+                        os.write(SIZE_FRAME_FOR_EMPTY_CONTENT_FRAME);
+                        os.write(EMPTY_CONTENT_FRAME);
+
+                    }
+                    os.write(NO_CONTENT_SIGNAL);
                 }
-                else {
-                    os.write(CONTENT_AHEAD_SIGNAL);
-                    os.write(SIZE_FRAME_FOR_EMPTY_CONTENT_FRAME);
-                    os.write(EMPTY_CONTENT_FRAME);
-                }
-                os.write(NO_CONTENT_SIGNAL);
             }
             catch (Exception ex) {
                 throw new SendException(ex);
@@ -100,6 +108,8 @@ public abstract class OStreamSender<T> implements Sender<T> {
         };
     }
     @Override public void close() {
-        mos.close();
+        synchronized (writeSync) {
+            mos.close();
+        }
     }
 }
